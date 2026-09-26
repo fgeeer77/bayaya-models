@@ -46,7 +46,9 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
-          df -h /
+          # Exporting and quantizing Whisper large-v3 needs more than the runner's RAM.
+          sudo fallocate -l 20G /extra-swap && sudo chmod 600 /extra-swap && sudo mkswap /extra-swap && sudo swapon /extra-swap
+          df -h / && free -h
 
       - if: steps.gate.outputs.skip != 'true'
         uses: actions/setup-python@v5
@@ -59,7 +61,10 @@ jobs:
           pip install --quiet --index-url https://download.pytorch.org/whl/cpu torch==2.5.1 torchaudio==2.5.1
           pip install --quiet numpy==1.26.4 onnx onnxruntime==1.20.1 sherpa-onnx==1.13.8 soundfile huggingface_hub safetensors
           if [ "${{ matrix.kind }}" = whisper ]; then pip install --quiet openai-whisper transformers accelerate; fi
-          if [ "${{ matrix.kind }}" = gigaam ]; then pip install --quiet git+https://github.com/salute-developers/GigaAM.git; fi
+          if [ "${{ matrix.kind }}" = gigaam ]; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
+            pip install --quiet git+https://github.com/salute-developers/GigaAM.git
+          fi
           pip list 2>/dev/null | grep -iE "^(torch|onnx|onnxruntime|sherpa-onnx|openai-whisper|transformers|gigaam) "
           # Russian test recording used by sherpa-onnx's own GigaAM tests.
           curl -sSL -o example.wav https://huggingface.co/csukuangfj/tmp-files/resolve/main/GigaAM/example.wav
@@ -71,8 +76,8 @@ jobs:
           from huggingface_hub import HfApi
           info = HfApi().model_info("${{ matrix.repo }}")
           card = info.card_data.to_dict() if info.card_data else {}
-          print(f"REVISION={info.sha}")
-          print(f"LICENSE={card.get('license', 'unknown')}")
+          print(f"REVISION='{info.sha}'")
+          print(f"LICENSE='{card.get('license', 'not stated')}'")
           PY
           cat source.env && . ./source.env
           python3 convert/reference.py whisper "$REPO" "$REVISION" example.wav reference.txt
@@ -81,24 +86,24 @@ jobs:
           python3 convert/export_whisper.py "$NAME"
           rm -f "$NAME.pt" "$NAME-encoder.onnx" "$NAME-decoder.onnx" "$NAME"-*.weights
           python3 convert/verify.py whisper "$NAME-encoder.int8.onnx" "$NAME-decoder.int8.onnx" "$NAME-tokens.txt" example.wav reference.txt ${{ matrix.max_cer }} | tee verify.txt
-          echo "SOURCE=https://huggingface.co/$REPO" >> source.env
-          echo "FILES=$NAME-encoder.int8.onnx $NAME-decoder.int8.onnx $NAME-tokens.txt" >> source.env
+          echo "SOURCE='https://huggingface.co/$REPO'" >> source.env
+          echo "FILES='$NAME-encoder.int8.onnx $NAME-decoder.int8.onnx $NAME-tokens.txt'" >> source.env
 
       - name: Convert GigaAM
         if: steps.gate.outputs.skip != 'true' && matrix.kind == 'gigaam'
         run: |
-          echo "REVISION=$(git ls-remote https://github.com/salute-developers/GigaAM HEAD | cut -f1)" > source.env
-          echo "LICENSE=mit" >> source.env
-          echo "SOURCE=https://github.com/salute-developers/GigaAM ($NAME)" >> source.env
+          echo "REVISION='$(git ls-remote https://github.com/salute-developers/GigaAM HEAD | cut -f1)'" > source.env
+          echo "LICENSE='mit'" >> source.env
+          echo "SOURCE='https://github.com/salute-developers/GigaAM ($NAME)'" >> source.env
           python3 convert/reference.py gigaam "$NAME" example.wav reference.txt
           python3 convert/export_gigaam.py "$NAME"
           python3 convert/verify.py ctc model.int8.onnx tokens.txt example.wav reference.txt ${{ matrix.max_cer }} | tee verify.txt
-          echo "FILES=model.int8.onnx tokens.txt" >> source.env
+          echo "FILES='model.int8.onnx tokens.txt'" >> source.env
 
       - name: Publish release
         if: steps.gate.outputs.skip != 'true'
         run: |
-          . ./source.env
+          set -a; . ./source.env; set +a
           python3 - <<'PY'
           import hashlib, json, os
           files = []
