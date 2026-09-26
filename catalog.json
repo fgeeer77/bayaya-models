@@ -1,0 +1,116 @@
+{
+ "version": 1,
+ "repository": "fgeeer77/bayaya-models",
+ "models": [
+  {
+   "id": "whisper-ru-large-v3-antony66",
+   "title": "Whisper large-v3 · русский (antony66)",
+   "description": "Whisper large-v3, дообученный на русской речи (основа популярных CT2-сборок). Самая точная для русского среди Whisper, но большая и медленная: нужно ≥8 ГБ ОЗУ. Лицензия автором не указана (исходный Whisper — MIT).",
+   "group": "Whisper · русские дообучения (GitHub)",
+   "arch": "WHISPER",
+   "license": "not stated",
+   "source": "https://huggingface.co/antony66/whisper-large-v3-russian @ 3c24e46392",
+   "files": [
+    {
+     "role": "encoder",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/whisper-ru-large-v3-antony66/ru-large-v3-antony66-encoder.int8.onnx",
+     "size": 766590133,
+     "sha256": "fad2f5ab6434ce18ab22e20f4a1ce86c7182c6135d4df86a0fb3d7fe26128d17"
+    },
+    {
+     "role": "decoder",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/whisper-ru-large-v3-antony66/ru-large-v3-antony66-decoder.int8.onnx",
+     "size": 1008196358,
+     "sha256": "8a4d90010c516ba1a45292c168f47927f65267c72b404aa54028dc3f5d1c9cce"
+    },
+    {
+     "role": "tokens",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/whisper-ru-large-v3-antony66/ru-large-v3-antony66-tokens.txt",
+     "size": 816730,
+     "sha256": "b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126"
+    }
+   ]
+  },
+  {
+   "id": "whisper-ru-turbo-coriollon",
+   "title": "Whisper large-v3 turbo · русский (coriollon)",
+   "description": "Turbo, дообученный на русской речи: почти как large-v3 по точности, в несколько раз быстрее. Apache-2.0.",
+   "group": "Whisper · русские дообучения (GitHub)",
+   "arch": "WHISPER",
+   "license": "apache-2.0",
+   "source": "https://huggingface.co/coriollon/whisper-large-v3-turbo-russian @ 5554b84e24",
+   "files": [
+    {
+     "role": "encoder",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/whisper-ru-turbo-coriollon/ru-turbo-coriollon-encoder.int8.onnx",
+     "size": 674622360,
+     "sha256": "d6ec99cf116030c7ef16b199ef0ae66f4306dcde7a11f9a8d9cd2303da759247"
+    },
+    {
+     "role": "decoder",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/whisper-ru-turbo-coriollon/ru-turbo-coriollon-decoder.int8.onnx",
+     "size": 361070805,
+     "sha256": "2e1ecfbba83a3a5b2dcc06fb9a6b26c0b9dc73bb41e5b336bfb9ae80b4ef4d8b"
+    },
+    {
+     "role": "tokens",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/whisper-ru-turbo-coriollon/ru-turbo-coriollon-tokens.txt",
+     "size": 816730,
+     "sha256": "b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126"
+    }
+   ]
+  },
+  {
+   "id": "whisper-ru-turbo-dvislobokov",
+   "title": "Whisper large-v3 turbo · русский (dvislobokov)",
+   "description": "Turbo, дообученный на русской речи; на этой модели основана сборка MECHUK для whisper.cpp. MIT.",
+   "group": "Whisper · русские дообучения (GitHub)",
+   "arch": "WHISPER",
+   "license": "mit",
+   "source": "https://huggingface.co/dvislobokov/whisper-large-v3-turbo-russian @ fbecad6b44",
+   "files": [
+    {
+     "role": "encoder",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/whisper-ru-turbo-dvislobokov/ru-turbo-dvislobokov-encoder.int8.onnx",
+     "size": 674622362,
+     "sha256": "95bb66fab4563375ec76a344172cb30da9f7a95948c1c6b757de9557d4bffb26"
+    },
+    {
+     "role": "decoder",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/whisper-ru-turbo-dvislobokov/ru-turbo-dvislobokov-decoder.int8.onnx",
+     "size": 361070805,
+     "sha256": "4f4457b303d0d34d52d38863c3b0032b128a07df72064a5a2456cf6a6041acd0"
+    },
+    {
+     "role": "tokens",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/whisper-ru-turbo-dvislobokov/ru-turbo-dvislobokov-tokens.txt",
+     "size": 816730,
+     "sha256": "b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126"
+    }
+   ]
+  },
+  {
+   "id": "gigaam-multilingual-ctc",
+   "title": "GigaAM Multilingual CTC INT8",
+   "description": "GigaAM от Сбера для нескольких языков (русский, английский, казахский и др.). Быстрая, без пунктуации. MIT.",
+   "group": "GigaAM Multilingual (GitHub)",
+   "arch": "NEMO_CTC",
+   "license": "mit",
+   "source": "https://github.com/salute-developers/GigaAM (multilingual_ctc) @ 7447938d79",
+   "files": [
+    {
+     "role": "model",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/gigaam-multilingual-ctc/model.int8.onnx",
+     "size": 224762518,
+     "sha256": "f66bff0186d649a2300da895e9f81d4ef8764519db2dc46429a44b883e90d105"
+    },
+    {
+     "role": "tokens",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/gigaam-multilingual-ctc/tokens.txt",
+     "size": 391,
+     "sha256": "9b5df7987cb4ca52c1a468649ce897fab1cd182067416e29fef49dfaa7a856c2"
+    }
+   ]
+  }
+ ]
+}

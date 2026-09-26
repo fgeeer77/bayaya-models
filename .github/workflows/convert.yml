@@ -28,7 +28,6 @@ jobs:
           - { id: whisper-ru-turbo-dvislobokov, kind: whisper, repo: dvislobokov/whisper-large-v3-turbo-russian, name: ru-turbo-dvislobokov, max_cer: "0.15" }
           - { id: whisper-ru-large-v3-antony66, kind: whisper, repo: antony66/whisper-large-v3-russian, name: ru-large-v3-antony66, max_cer: "0.15" }
           - { id: gigaam-multilingual-ctc, kind: gigaam, name: multilingual_ctc, max_cer: "0.05" }
-          - { id: gigaam-multilingual-large-ctc, kind: gigaam, name: multilingual_large_ctc, max_cer: "0.05" }
     env:
       ID: ${{ matrix.id }}
       NAME: ${{ matrix.name }}
@@ -38,6 +37,11 @@ jobs:
       - id: gate
         run: |
           if [ -n "${{ inputs.only }}" ] && [ "${{ inputs.only }}" != "$ID" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+          # A published model is never rebuilt in place: the signed catalog pins its checksums.
+          # Delete the release first to convert it again (then re-sign the catalog).
+          if gh release view "$ID" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$ID is already published"; echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
