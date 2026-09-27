@@ -1,5 +1,5 @@
 {
- "version": 1,
+ "version": 2,
  "repository": "fgeeer77/bayaya-models",
  "models": [
   {
@@ -107,6 +107,29 @@
     {
      "role": "tokens",
      "url": "https://github.com/fgeeer77/bayaya-models/releases/download/gigaam-multilingual-ctc/tokens.txt",
+     "size": 391,
+     "sha256": "9b5df7987cb4ca52c1a468649ce897fab1cd182067416e29fef49dfaa7a856c2"
+    }
+   ]
+  },
+  {
+   "id": "gigaam-multilingual-large-ctc",
+   "title": "GigaAM Multilingual Large CTC INT8",
+   "description": "Большая многоязычная GigaAM (600M): точнее обычной, но в несколько раз тяжелее, нужно ≥6 ГБ ОЗУ. Без пунктуации. MIT.",
+   "group": "GigaAM Multilingual (GitHub)",
+   "arch": "NEMO_CTC",
+   "license": "mit",
+   "source": "https://github.com/salute-developers/GigaAM (multilingual_large_ctc) @ 7447938d79",
+   "files": [
+    {
+     "role": "model",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/gigaam-multilingual-large-ctc/model.int8.onnx",
+     "size": 591645636,
+     "sha256": "7fdb9427c1c871407ecbde741fd7bb0479924981c89aa9f4241587bbcb085ae3"
+    },
+    {
+     "role": "tokens",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/gigaam-multilingual-large-ctc/tokens.txt",
      "size": 391,
      "sha256": "9b5df7987cb4ca52c1a468649ce897fab1cd182067416e29fef49dfaa7a856c2"
     }
