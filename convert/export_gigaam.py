@@ -4,6 +4,7 @@ sherpa-onnx script does for GigaAM v3 (scripts/nemo/GigaAM/export-onnx-ctc-v3.py
 
     python3 export_gigaam.py multilingual_ctc      # writes model.int8.onnx and tokens.txt
 """
+import os
 import sys
 
 import gigaam
@@ -19,7 +20,10 @@ def add_meta_data(filename: str, meta_data: dict):
         meta = model.metadata_props.add()
         meta.key = key
         meta.value = str(value)
-    onnx.save(model, filename)
+    # Protobuf cannot hold more than 2 GB (the fp32 Large model is 2.2 GB): the intermediate model
+    # always keeps its weights in a side file; only the INT8 result is written as one file.
+    onnx.save(model, filename, save_as_external_data=True, all_tensors_to_one_file=True,
+              location=os.path.basename(filename) + ".data", size_threshold=1024)
 
 
 def main():
@@ -44,7 +48,11 @@ def main():
         "comment": model_name,
         "is_giga_am": 1,
     })
-    quantize_dynamic(model_input=f"./{model_name}.onnx", model_output="./model.int8.onnx", weight_type=QuantType.QUInt8)
+    quantize_dynamic(model_input=f"./{model_name}.onnx", model_output="./model.int8.tmp.onnx",
+                     weight_type=QuantType.QUInt8, use_external_data_format=True)
+    # About a quarter of the fp32 size: fits into the single file sherpa-onnx loads.
+    onnx.save(onnx.load("./model.int8.tmp.onnx"), "./model.int8.onnx")
+    print("model.int8.onnx", os.path.getsize("./model.int8.onnx"), "bytes")
 
 
 if __name__ == "__main__":

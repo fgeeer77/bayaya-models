@@ -11,6 +11,7 @@ turns on "models from GitHub" in its settings.
 | `whisper-ru-turbo-dvislobokov` | [dvislobokov/whisper-large-v3-turbo-russian](https://huggingface.co/dvislobokov/whisper-large-v3-turbo-russian) (the model behind MECHUK's whisper.cpp files) | MIT |
 | `whisper-ru-large-v3-antony66` | [antony66/whisper-large-v3-russian](https://huggingface.co/antony66/whisper-large-v3-russian) (the model behind the popular CT2 builds) | not stated by the author (base Whisper: MIT) |
 | `gigaam-multilingual-ctc` | [GigaAM Multilingual](https://github.com/salute-developers/GigaAM) `multilingual_ctc` (220M) | MIT |
+| `gigaam-multilingual-large-ctc` | [GigaAM Multilingual](https://github.com/salute-developers/GigaAM) `multilingual_large_ctc` (600M) | MIT |
 
 ## How a model gets here
 
