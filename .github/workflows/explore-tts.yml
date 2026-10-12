@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        what: [silero-parts, stress-parts]
+        what: [silero-export]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -32,6 +32,13 @@ jobs:
           curl -sSL -o v5_cis_base_nostress.jit https://models.silero.ai/models/tts/ru/v5_cis_base_nostress.jit
           ls -la v5_cis_base_nostress.jit && sha256sum v5_cis_base_nostress.jit
           python3 convert/explore_tts.py silero-parts v5_cis_base_nostress.jit
+      - name: Silero export
+        if: matrix.what == 'silero-export'
+        run: |
+          curl -sSL -o v5_cis_base_nostress.jit https://models.silero.ai/models/tts/ru/v5_cis_base_nostress.jit
+          python3 convert/tts_silero.py export v5_cis_base_nostress.jit silero
+          ls -la silero
+          python3 convert/tts_silero.py check v5_cis_base_nostress.jit silero
       - name: Silero Stress
         if: matrix.what == 'stress-parts'
         run: python3 convert/explore_tts.py stress-parts
