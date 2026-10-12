@@ -116,7 +116,7 @@ class ForwardTransformer(torch.nn.Module):
     def __init__(self, original):
         super().__init__()
         self.pos_encoder = PositionalEncoding(original.pos_encoder)
-        self.layers = torch.nn.ModuleList(FFTBlock(layer) for layer in original.layers)
+        self.layers = torch.nn.ModuleList(FFTBlock(layer) for layer in children(original.layers))
         self.norm = torch.nn.LayerNorm(original.norm.weight.shape[0])
 
     def forward(self, x):
@@ -124,6 +124,11 @@ class ForwardTransformer(torch.nn.Module):
         for layer in self.layers:
             x = layer(x)
         return self.norm(x)
+
+
+def children(original):
+    """A scripted ModuleList's modules in order (it cannot be iterated itself)."""
+    return [m for _, m in sorted(original.named_children(), key=lambda item: int(item[0]))]
 
 
 def embedding(original):
@@ -177,16 +182,16 @@ class HourGlass(torch.nn.Module):
     def __init__(self, original):
         super().__init__()
         self.pos_encoder = PositionalEncoding(original.pos_encoder)
-        self.pre_vanilla_layers = torch.nn.ModuleList(FFTBlock(b) for b in original.pre_vanilla_layers)
-        self.shorten_layers = torch.nn.ModuleList(FFTBlock(b) for b in original.shorten_layers)
-        self.post_vanilla_layers = torch.nn.ModuleList(FFTBlock(b) for b in original.post_vanilla_layers)
+        self.pre_vanilla_layers = torch.nn.ModuleList(FFTBlock(b) for b in children(original.pre_vanilla_layers))
+        self.shorten_layers = torch.nn.ModuleList(FFTBlock(b) for b in children(original.shorten_layers))
+        self.post_vanilla_layers = torch.nn.ModuleList(FFTBlock(b) for b in children(original.post_vanilla_layers))
         self.norm = torch.nn.LayerNorm(original.norm.weight.shape[0])
         self.factor = int(original.shorten_factor)
         self.dim = int(original.upsample.dim)
         w = original.upsample.proj.weight.shape
         self.upsample = torch.nn.Module()
         self.upsample.proj = torch.nn.Linear(w[1], w[0])
-        if len(original.pre_vanilla_layers) != 1 or len(original.post_vanilla_layers) != 1:
+        if len(self.pre_vanilla_layers) != 1 or len(self.post_vanilla_layers) != 1:
             raise SystemExit("unexpected hourglass layout")
 
     def forward(self, x):
@@ -233,7 +238,7 @@ class Decoder(torch.nn.Module):
         w = backbone.embed.weight.shape
         self.embed = torch.nn.Conv1d(w[1], w[0], w[2], padding=w[2] // 2)
         self.norm = torch.nn.LayerNorm(w[0], eps=1e-6)
-        self.convnext = torch.nn.ModuleList(ConvNeXt(b) for b in backbone.convnext)
+        self.convnext = torch.nn.ModuleList(ConvNeXt(b) for b in children(backbone.convnext))
         self.final_layer_norm = torch.nn.LayerNorm(w[0], eps=1e-6)
         w = original.vocoder.head.out.weight.shape
         self.out = torch.nn.Linear(w[1], w[0])
