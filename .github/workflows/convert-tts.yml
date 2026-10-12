@@ -1,0 +1,194 @@
+name: Convert voices
+
+# Converts speech models (voices) for Bayaya Platinum, lets a speech recogniser listen to every voice
+# in sherpa-onnx (the runtime the app uses), and publishes each as a release with SHA-256 checksums.
+# The app lists them only through the signed tts-catalog.json.
+on:
+  push:
+    branches: [main]
+    paths: [convert/tts_*.py, convert/verify_tts.py, convert/texts/**, .github/workflows/convert-tts.yml]
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Voice id to convert (empty = all)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  SHERPA: https://github.com/k2-fsa/sherpa-onnx/releases/download
+  # eSpeak NG data of the official sherpa-onnx voices, as the app pins it (model-pins.json): the
+  # converted Kokoro voices use the same directory instead of shipping their own.
+  ESPEAK_SHA256: c9aadfe9b24083b97b88ca8bef294e462a410b7d67dd6d51db17c4607c71dc40
+  KOKORO_SRC: https://github.com/buchwandler/kokoro-onnx-models/releases/download
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: tts-kokoro-ru-base
+            kind: kokoro
+            release: model-files-russian-zaakirio-base-v2
+            model: kokoro-russian-zaakirio-base-v2.onnx
+            model_sha: 1b25e548050d16cf06723726fd0d55bff1ea1beec3e60d68ba92c76d02406d53
+            voices: voices-russian-zaakirio-base-v2.raw.bin
+            voices_sha: 614473e5650e2eaceec2459471cd0cd9ac3431ff2bde7c84cb4bdacef9f00916
+            config: config-russian-zaakirio-base-v2.json
+            config_sha: e4da95d48ae0f937adeda8dd99a804941913327e6d7607a7a15de11abb69a120
+            speakers: sveta,masha
+            voice: ru
+            language: Russian
+            asr: gigaam
+            texts: ru
+            max_cer: "0.15"
+            source: https://huggingface.co/zaakirio/kokoro-ru
+            license: OpenRAIL-M (weights), Apache-2.0 (code)
+          - id: tts-kokoro-ru-dima
+            kind: kokoro
+            release: model-files-russian-zaakirio-dima-v2
+            model: kokoro-russian-zaakirio-dima-v2.onnx
+            model_sha: 639c178e19c001336154b29c39a41cd1b3d38d58d55c6cb3940708d7c449f3db
+            voices: voices-russian-zaakirio-dima-v2.raw.bin
+            voices_sha: e774e8859604164aa27c393fa4393c3a4ff2162d37911a39574551edbc801dcb
+            config: config-russian-zaakirio-dima-v2.json
+            config_sha: e4da95d48ae0f937adeda8dd99a804941913327e6d7607a7a15de11abb69a120
+            speakers: dima
+            voice: ru
+            language: Russian
+            asr: gigaam
+            texts: ru
+            max_cer: "0.15"
+            source: https://huggingface.co/zaakirio/kokoro-ru
+            license: OpenRAIL-M (weights), Apache-2.0 (code)
+          - id: tts-kokoro-de-thorsten
+            kind: kokoro
+            release: model-files-german-thorsten-v1.1.4
+            model: kokoro-german-thorsten-v1.1.4.onnx
+            model_sha: 51bdee34625167ac7ec5d3224b97ff7cacbbe9aa8b67762088beebe44e338b04
+            voices: voices-german-thorsten-v1.1.4.raw.bin
+            voices_sha: 3195c20800f7684494a94b64f30928b9b22ffab1aa46175c784c93ba084e44c5
+            config: config-german-thorsten-v1.1.4.json
+            config_sha: 5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f
+            speakers: thorsten
+            voice: de
+            language: German
+            asr: whisper
+            texts: de
+            max_cer: "0.2"
+            source: https://huggingface.co/Thorsten-Voice/Kokoro
+            license: Apache-2.0
+    env:
+      ID: ${{ matrix.id }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - id: gate
+        run: |
+          if [ -n "${{ inputs.only }}" ] && [ "${{ inputs.only }}" != "$ID" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+          # A published voice is never rebuilt in place: the signed catalog pins its checksums.
+          if gh release view "$ID" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$ID is already published"; echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install tools
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          pip install --quiet numpy==1.26.4 onnx onnxruntime==1.20.1 sherpa-onnx==1.13.8 soundfile
+          pip list 2>/dev/null | grep -iE "^(onnx|onnxruntime|sherpa-onnx) "
+
+      - name: Reference files and the recogniser
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          # Kokoro 1.0: tokens.txt and the eSpeak NG data (checked against the digest the app pins).
+          curl -sSL "$SHERPA/tts-models/kokoro-int8-multi-lang-v1_0.tar.bz2" | tar xj
+          python3 - <<'PY'
+          import hashlib, os
+          entries = []
+          for root, _, files in os.walk("kokoro-int8-multi-lang-v1_0/espeak-ng-data"):
+              for name in files:
+                  path = os.path.join(root, name)
+                  rel = os.path.relpath(path, "kokoro-int8-multi-lang-v1_0")
+                  entries.append((rel, hashlib.sha256(open(path, "rb").read()).hexdigest(), os.path.getsize(path)))
+          lines = "".join(f"{p}\t{s}\n" for p, s, _ in sorted(entries))
+          digest = hashlib.sha256(lines.encode()).hexdigest()
+          print(len(entries), "files", sum(e[2] for e in entries), "bytes", digest)
+          assert digest == os.environ["ESPEAK_SHA256"], "eSpeak NG data differs from the pinned one"
+          with open("espeak.env", "w") as f:
+              f.write(f"ESPEAK_COUNT={len(entries)}\nESPEAK_SIZE={sum(e[2] for e in entries)}\n")
+          PY
+          if [ "${{ matrix.asr }}" = gigaam ]; then
+            curl -sSL "$SHERPA/asr-models/sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16.tar.bz2" | tar xj
+            echo "ASR_DIR=sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16" >> "$GITHUB_ENV"
+          else
+            curl -sSL "$SHERPA/asr-models/sherpa-onnx-whisper-small.tar.bz2" | tar xj
+            echo "ASR_DIR=sherpa-onnx-whisper-small" >> "$GITHUB_ENV"
+          fi
+
+      - name: Convert Kokoro
+        if: steps.gate.outputs.skip != 'true' && matrix.kind == 'kokoro'
+        run: |
+          S="$KOKORO_SRC/${{ matrix.release }}"
+          python3 convert/tts_kokoro.py out kokoro-int8-multi-lang-v1_0 \
+            "$S/${{ matrix.model }}" ${{ matrix.model_sha }} "$S/${{ matrix.voices }}" ${{ matrix.voices_sha }} \
+            "$S/${{ matrix.config }}" ${{ matrix.config_sha }} "${{ matrix.speakers }}" ${{ matrix.voice }} ${{ matrix.language }}
+          export ESPEAK_DATA=kokoro-int8-multi-lang-v1_0/espeak-ng-data
+          for model in model.onnx model.int8.onnx; do
+            python3 convert/verify_tts.py kokoro out "$model" ${{ matrix.voice }} ${{ matrix.asr }} "$ASR_DIR" \
+              convert/texts/${{ matrix.texts }}.txt ${{ matrix.max_cer }} | tee -a verify.txt
+          done
+          ls -la out
+          {
+            echo "SOURCE='${{ matrix.source }} (ONNX: github.com/buchwandler/kokoro-onnx-models, release ${{ matrix.release }})'"
+            echo "REVISION='${{ matrix.model_sha }}'"
+            echo "LICENSE='${{ matrix.license }}'"
+            echo "FILES='model.onnx model.int8.onnx voices.bin tokens.txt'"
+          } > source.env
+
+      - name: Publish release
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          set -a; . ./source.env; . ./espeak.env; set +a
+          cd out
+          python3 - <<'PY'
+          import hashlib, json, os
+          files = []
+          for name in os.environ["FILES"].split():
+              h = hashlib.sha256()
+              with open(name, "rb") as f:
+                  for chunk in iter(lambda: f.read(1 << 20), b""):
+                      h.update(chunk)
+              files.append({"path": name, "size": os.path.getsize(name), "sha256": h.hexdigest()})
+          manifest = {
+              "id": os.environ["ID"], "source": os.environ["SOURCE"], "sourceRevision": os.environ["REVISION"],
+              "license": os.environ["LICENSE"],
+              "converter": f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              "commit": os.environ["GITHUB_SHA"], "files": files,
+              "bundles": [{"role": "espeak", "prefix": "espeak-ng-data/", "count": int(os.environ["ESPEAK_COUNT"]),
+                           "size": int(os.environ["ESPEAK_SIZE"]), "sha256": os.environ["ESPEAK_SHA256"]}],
+          }
+          json.dump(manifest, open(f"{os.environ['ID']}.json", "w"), indent=1)
+          print(json.dumps(manifest, indent=1))
+          PY
+          sha256sum $FILES "$ID.json" > SHA256SUMS
+          {
+            echo "Converted automatically from $SOURCE (licence $LICENSE)."
+            echo
+            echo "Every voice read known sentences in sherpa-onnx 1.13.8; a speech recogniser wrote down what it heard:"
+            echo '```'; grep -E "mean CER|CER [0-9]" ../verify.txt; echo '```'
+            echo '```'; cat SHA256SUMS; echo '```'
+          } > notes.md
+          gh release create "$ID" $FILES "$ID.json" SHA256SUMS --title "$ID" --notes-file notes.md
+          echo "MANIFEST-BEGIN"; cat "$ID.json"; echo "MANIFEST-END"
