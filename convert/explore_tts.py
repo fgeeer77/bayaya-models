@@ -287,6 +287,69 @@ def stress_parts():
                 print(f"  {attr}: module params={sum(p.numel() for p in value.parameters())}")
 
 
+def silero_tree(path):
+    """Every module of the networks: class, parameter shapes, and the code of each non-standard class once."""
+    import torch
+
+    model = torch.jit.load(path, map_location="cpu")
+    model.eval()
+    section("tree")
+    seen = {}
+    for name, module in model.named_modules():
+        cls = module.original_name
+        own = {n: tuple(p.shape) for n, p in module.named_parameters(recurse=False)}
+        buffers = {n: tuple(b.shape) for n, b in module.named_buffers(recurse=False)}
+        consts = {}
+        for attr in ["num_heads", "embed_dim", "batch_first", "kernel_size", "padding", "dilation", "stride", "groups",
+                     "eps", "normalized_shape", "pitch_strength", "sil_value", "point_id", "articulation_emb", "_qkv_same_embed_dim",
+                     "head_dim", "dropout", "in_channels", "out_channels", "padding_mode", "approximate", "dim", "scale",
+                     "n_layers", "d_model", "pre_lnorm"]:
+            try:
+                v = getattr(module, attr)
+                if not isinstance(v, torch.nn.Module) and not callable(v):
+                    consts[attr] = v if not isinstance(v, torch.Tensor) or v.numel() < 4 else tuple(v.shape)
+            except Exception:  # noqa: BLE001
+                pass
+        print(f"{name or '<root>'}: {cls} {own} {buffers} {consts}")
+        if cls not in seen:
+            seen[cls] = module
+    standard = {"Linear", "Conv1d", "Embedding", "LayerNorm", "Dropout", "ReLU", "GELU", "Sequential", "ModuleList",
+                "MultiheadAttention", "NonDynamicallyQuantizableLinear", "Identity", "Tanh", "LeakyReLU", "SiLU", "Mish",
+                "BatchNorm1d", "ConvTranspose1d", "Softplus"}
+    for cls, module in seen.items():
+        if cls in standard:
+            continue
+        section(f"class {cls}")
+        for method in ["forward"] + [m for m in dir(module) if not m.startswith("_") and m not in ("forward",)]:
+            try:
+                fn = getattr(module, method)
+                if hasattr(fn, "code") and method != "forward":
+                    print(f"--- {method}")
+                    print(fn.code[:3000])
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            print(module.code[:5000])
+        except Exception as e:  # noqa: BLE001
+            print("(no code)", e)
+    section("lite interpreter of scripted parts")
+    try:
+        class Durations(torch.nn.Module):
+            def __init__(self, m):
+                super().__init__()
+                self.durations = m.dur_predictor
+
+            def forward(self, tokens: torch.Tensor, speaker: torch.Tensor) -> torch.Tensor:
+                return self.durations(tokens, speaker, None, 1.0, None)
+
+        scripted = torch.jit.script(Durations(model))
+        scripted._save_for_lite_interpreter("/tmp/durations.ptl")
+        print("durations.ptl", os.path.getsize("/tmp/durations.ptl"))
+    except Exception as e:  # noqa: BLE001
+        print(f"{type(e).__name__}: {str(e)[:1000]}")
+
+
 if __name__ == "__main__":
     {"silero": lambda: silero(sys.argv[2]), "stress": stress, "vosk": lambda: vosk(sys.argv[2]),
-     "silero-parts": lambda: silero_parts(sys.argv[2]), "stress-parts": stress_parts}[sys.argv[1]]()
+     "silero-parts": lambda: silero_parts(sys.argv[2]), "stress-parts": stress_parts,
+     "silero-tree": lambda: silero_tree(sys.argv[2])}[sys.argv[1]]()

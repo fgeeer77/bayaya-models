@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        what: [silero-export]
+        what: [silero-tree]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -32,6 +32,12 @@ jobs:
           curl -sSL -o v5_cis_base_nostress.jit https://models.silero.ai/models/tts/ru/v5_cis_base_nostress.jit
           ls -la v5_cis_base_nostress.jit && sha256sum v5_cis_base_nostress.jit
           python3 convert/explore_tts.py silero-parts v5_cis_base_nostress.jit
+      - name: Silero tree
+        if: matrix.what == 'silero-tree'
+        run: |
+          curl -sSL -o v5_cis_base_nostress.jit https://models.silero.ai/models/tts/ru/v5_cis_base_nostress.jit
+          python3 convert/explore_tts.py silero-tree v5_cis_base_nostress.jit > tree.txt 2>&1 || true
+          cat tree.txt
       - name: Silero export
         if: matrix.what == 'silero-export'
         run: |
