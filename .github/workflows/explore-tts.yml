@@ -1,0 +1,45 @@
+name: Explore speech models
+
+# Prints how the speech models without a sherpa-onnx build are made (Silero cis_base, Silero Stress,
+# Vosk-TTS), to plan their port. Run by hand; publishes nothing.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  explore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        what: [silero, stress, vosk]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install tools
+        run: |
+          pip install --quiet --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          pip install --quiet numpy==1.26.4 onnx onnxruntime==1.20.1 onnxscript
+          if [ "${{ matrix.what }}" = stress ]; then pip install --quiet silero-stress; fi
+      - name: Silero cis_base
+        if: matrix.what == 'silero'
+        run: |
+          curl -sSL -o v5_cis_base_nostress.jit https://models.silero.ai/models/tts/ru/v5_cis_base_nostress.jit
+          ls -la v5_cis_base_nostress.jit && sha256sum v5_cis_base_nostress.jit
+          python3 convert/explore_tts.py silero v5_cis_base_nostress.jit
+      - name: Silero Stress
+        if: matrix.what == 'stress'
+        run: python3 convert/explore_tts.py stress
+      - name: Vosk-TTS
+        if: matrix.what == 'vosk'
+        run: |
+          curl -sSL -o vosk.zip https://alphacephei.com/vosk/models/vosk-model-tts-ru-0.9-multi.zip
+          ls -la vosk.zip && sha256sum vosk.zip
+          unzip -q vosk.zip
+          python3 convert/explore_tts.py vosk vosk-model-tts-ru-0.9-multi
+          curl -sSI https://alphacephei.com/vosk/models/vosk-model-tts-ru-0.10-multi.zip | head -5 || true
