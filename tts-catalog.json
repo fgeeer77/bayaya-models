@@ -1,0 +1,420 @@
+{
+ "version": 1,
+ "repository": "fgeeer77/bayaya-models",
+ "models": [
+  {
+   "id": "tts-silero-v5-cis",
+   "meta": {
+    "family": "silero",
+    "title": "Silero · русский и языки СНГ · 60 голосов",
+    "group": "Голоса из bayaya-models (GitHub)",
+    "license": "MIT",
+    "description": "Silero TTS v5 cis_base: 29 русских голосов и голоса 19 языков России и СНГ (украинский, белорусский, казахский, татарский, башкирский, узбекский, армянский, грузинский, якутский и другие), звук 48 кГц. Ударения в русских словах — из словаря на 1,7 млн словоформ (из Vosk-TTS, Apache-2.0); знак + или ударение над гласной в тексте задают его вручную. Цифры в русском тексте читаются словами.",
+    "languages": [
+     "ru",
+     "az",
+     "ba",
+     "be",
+     "cv",
+     "hy",
+     "ka",
+     "kbd",
+     "kjh",
+     "kk",
+     "ky",
+     "mdf",
+     "myv",
+     "sah",
+     "tg",
+     "tt",
+     "udm",
+     "uk",
+     "uz",
+     "xal"
+    ],
+    "speakers": [
+     "az:aze_gamat=Гамат",
+     "ba:bak_aigul=Айгуль",
+     "ba:bak_alfia=Альфия",
+     "ba:bak_alfia2=Альфия 2",
+     "ba:bak_miyau=Мияу",
+     "ba:bak_ramilia=Рамиля",
+     "be:bel_anatoliy=Анатолий",
+     "be:bel_dmitriy=Дмитрий",
+     "be:bel_larisa=Лариса",
+     "cv:chv_ekaterina=Екатерина",
+     "myv:erz_alexandr=Александр",
+     "hy:hye_zara=Зара",
+     "ka:kat_vika=Вика",
+     "kk:kaz_zhadyra=Жадыра",
+     "kk:kaz_zhazira=Жазира",
+     "kbd:kbd_eduard=Эдуард",
+     "ky:kir_nurgul=Нургуль",
+     "kjh:kjh_karina=Карина",
+     "kjh:kjh_sibday=Сибдай",
+     "mdf:mdf_oksana=Оксана",
+     "ru:ru_aigul=Айгуль",
+     "ru:ru_albina=Альбина",
+     "ru:ru_alexandr=Александр",
+     "ru:ru_alfia=Альфия",
+     "ru:ru_alfia2=Альфия 2",
+     "ru:ru_bogdan=Богдан",
+     "ru:ru_dmitriy=Дмитрий",
+     "ru:ru_eduard=Эдуард",
+     "ru:ru_ekaterina=Екатерина",
+     "ru:ru_gamat=Гамат",
+     "ru:ru_igor=Игорь",
+     "ru:ru_karina=Карина",
+     "ru:ru_kejilgan=Кежилган",
+     "ru:ru_kermen=Кермен",
+     "ru:ru_marat=Марат",
+     "ru:ru_miyau=Мияу",
+     "ru:ru_nurgul=Нургуль",
+     "ru:ru_oksana=Оксана",
+     "ru:ru_onaoy=Онаой",
+     "ru:ru_ramilia=Рамиля",
+     "ru:ru_roman=Роман",
+     "ru:ru_safarhuja=Сафархуджа",
+     "ru:ru_saida=Саида",
+     "ru:ru_sibday=Сибдай",
+     "ru:ru_vika=Вика",
+     "ru:ru_zara=Зара",
+     "ru:ru_zhadyra=Жадыра",
+     "ru:ru_zhazira=Жазира",
+     "ru:ru_zinaida=Зинаида",
+     "sah:sah_zinaida=Зинаида",
+     "tt:tat_albina=Альбина",
+     "tt:tat_marat=Марат",
+     "tg:tgk_onaoy=Онаой",
+     "tg:tgk_safarhuja=Сафархуджа",
+     "udm:udm_bogdan=Богдан",
+     "uk:ukr_igor=Игорь",
+     "uk:ukr_roman=Роман",
+     "uz:uzb_saida=Саида",
+     "xal:xal_kejilgan=Кежилган",
+     "xal:xal_kermen=Кермен"
+    ],
+    "order": 90
+   },
+   "license": "MIT (Silero model), Apache-2.0 (Vosk-TTS dictionary, stress-ru.tsv)",
+   "source": "https://github.com/snakers4/silero-models (v5_cis_base_nostress.jit), stress: Vosk-TTS ru 0.9 dictionary (alphacephei.com/vosk) @ d7d361caf7",
+   "files": [
+    {
+     "role": "encoder",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-silero-v5-cis/encoder.onnx",
+     "size": 17544440,
+     "sha256": "6639993302a8eedfae0731d970f7d12b107908d9043b7000c4d241fd595abe4a"
+    },
+    {
+     "role": "decoder",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-silero-v5-cis/decoder.onnx",
+     "size": 69859680,
+     "sha256": "8e821ed0ce95645acf4e994a8b6ec1b4819ae38fd3d3e58f607a7821b21bde6a"
+    },
+    {
+     "role": "config",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-silero-v5-cis/silero.json",
+     "size": 1392,
+     "sha256": "c90db7d6f637da2cb302e65d9b2749b02ee11d85dcf776a10d1a4a6aef46c4a6"
+    },
+    {
+     "role": "stress",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-silero-v5-cis/stress-ru.tsv",
+     "size": 38253677,
+     "sha256": "c0c10c2ef99109a1e2e16387f089118287af10f4b08cae7bb165c932b2dd1b47"
+    }
+   ],
+   "bundles": []
+  },
+  {
+   "id": "tts-kokoro-ru-base",
+   "meta": {
+    "family": "kokoro",
+    "title": "Kokoro · русский · Света и Маша",
+    "description": "Kokoro, дообученный на русской речи (zaakirio/kokoro-ru): два женских голоса. Ударения ставит eSpeak NG, а не авторский модуль: изредка ударение или «ё» могут быть не на месте. Веса — OpenRAIL-M (запрещает, например, выдавать речь за слова реального человека), код — Apache-2.0.",
+    "group": "Голоса из bayaya-models (GitHub)",
+    "license": "OpenRAIL-M",
+    "languages": [
+     "ru"
+    ],
+    "speakers": [
+     "ru:sveta=Света",
+     "ru:masha=Маша"
+    ],
+    "order": 100
+   },
+   "license": "OpenRAIL-M (weights), Apache-2.0 (code)",
+   "source": "https://huggingface.co/zaakirio/kokoro-ru (ONNX: github.com/buchwandler/kokoro-onnx-models, release model-files-russian-zaakirio-base-v2) @ 1b25e54805",
+   "files": [
+    {
+     "role": "model",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-base/model.int8.onnx",
+     "size": 114125883,
+     "sha256": "caf7b64bb684354070cffceac50c0053636b40051501b541df1930e5497d2733"
+    },
+    {
+     "role": "voices",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-base/voices.bin",
+     "size": 1044480,
+     "sha256": "614473e5650e2eaceec2459471cd0cd9ac3431ff2bde7c84cb4bdacef9f00916"
+    },
+    {
+     "role": "tokens",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-base/tokens.txt",
+     "size": 687,
+     "sha256": "6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425"
+    }
+   ],
+   "bundles": [
+    {
+     "role": "espeak",
+     "prefix": "espeak-ng-data/",
+     "count": 355,
+     "size": 17991651,
+     "sha256": "c9aadfe9b24083b97b88ca8bef294e462a410b7d67dd6d51db17c4607c71dc40"
+    }
+   ]
+  },
+  {
+   "id": "tts-kokoro-ru-base-full",
+   "meta": {
+    "family": "kokoro",
+    "title": "Kokoro · русский · Света и Маша · без сжатия",
+    "description": "Тот же Kokoro для русского. Без сжатия весов: в 3 раза больше, но на многих процессорах быстрее сжатой. Ударения ставит eSpeak NG, а не авторский модуль: изредка ударение или «ё» могут быть не на месте. Веса — OpenRAIL-M (запрещает, например, выдавать речь за слова реального человека), код — Apache-2.0.",
+    "group": "Голоса из bayaya-models (GitHub)",
+    "license": "OpenRAIL-M",
+    "languages": [
+     "ru"
+    ],
+    "speakers": [
+     "ru:sveta=Света",
+     "ru:masha=Маша"
+    ],
+    "order": 101
+   },
+   "license": "OpenRAIL-M (weights), Apache-2.0 (code)",
+   "source": "https://huggingface.co/zaakirio/kokoro-ru (ONNX: github.com/buchwandler/kokoro-onnx-models, release model-files-russian-zaakirio-base-v2) @ 1b25e54805",
+   "files": [
+    {
+     "role": "model",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-base/model.onnx",
+     "size": 325509702,
+     "sha256": "38b48ddbd02df79136aae923bd0bf4b1cdd7c780f8102e80f7a3ce0af2cd9277"
+    },
+    {
+     "role": "voices",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-base/voices.bin",
+     "size": 1044480,
+     "sha256": "614473e5650e2eaceec2459471cd0cd9ac3431ff2bde7c84cb4bdacef9f00916"
+    },
+    {
+     "role": "tokens",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-base/tokens.txt",
+     "size": 687,
+     "sha256": "6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425"
+    }
+   ],
+   "bundles": [
+    {
+     "role": "espeak",
+     "prefix": "espeak-ng-data/",
+     "count": 355,
+     "size": 17991651,
+     "sha256": "c9aadfe9b24083b97b88ca8bef294e462a410b7d67dd6d51db17c4607c71dc40"
+    }
+   ]
+  },
+  {
+   "id": "tts-kokoro-ru-dima",
+   "meta": {
+    "family": "kokoro",
+    "title": "Kokoro · русский · Дима",
+    "description": "Мужской голос русского Kokoro (zaakirio/kokoro-ru). Ударения ставит eSpeak NG, а не авторский модуль: изредка ударение или «ё» могут быть не на месте. Веса — OpenRAIL-M (запрещает, например, выдавать речь за слова реального человека), код — Apache-2.0.",
+    "group": "Голоса из bayaya-models (GitHub)",
+    "license": "OpenRAIL-M",
+    "languages": [
+     "ru"
+    ],
+    "speakers": [
+     "ru:dima=Дима"
+    ],
+    "order": 102
+   },
+   "license": "OpenRAIL-M (weights), Apache-2.0 (code)",
+   "source": "https://huggingface.co/zaakirio/kokoro-ru (ONNX: github.com/buchwandler/kokoro-onnx-models, release model-files-russian-zaakirio-dima-v2) @ 639c178e19",
+   "files": [
+    {
+     "role": "model",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-dima/model.int8.onnx",
+     "size": 114125878,
+     "sha256": "9644445ee5501ea4dc754b4ff9ff46b4ec458ecd876eb255a570035c963a1ad4"
+    },
+    {
+     "role": "voices",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-dima/voices.bin",
+     "size": 522240,
+     "sha256": "e774e8859604164aa27c393fa4393c3a4ff2162d37911a39574551edbc801dcb"
+    },
+    {
+     "role": "tokens",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-dima/tokens.txt",
+     "size": 687,
+     "sha256": "6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425"
+    }
+   ],
+   "bundles": [
+    {
+     "role": "espeak",
+     "prefix": "espeak-ng-data/",
+     "count": 355,
+     "size": 17991651,
+     "sha256": "c9aadfe9b24083b97b88ca8bef294e462a410b7d67dd6d51db17c4607c71dc40"
+    }
+   ]
+  },
+  {
+   "id": "tts-kokoro-ru-dima-full",
+   "meta": {
+    "family": "kokoro",
+    "title": "Kokoro · русский · Дима · без сжатия",
+    "description": "Мужской голос русского Kokoro. Без сжатия весов: в 3 раза больше, но на многих процессорах быстрее сжатой. Ударения ставит eSpeak NG, а не авторский модуль: изредка ударение или «ё» могут быть не на месте. Веса — OpenRAIL-M (запрещает, например, выдавать речь за слова реального человека), код — Apache-2.0.",
+    "group": "Голоса из bayaya-models (GitHub)",
+    "license": "OpenRAIL-M",
+    "languages": [
+     "ru"
+    ],
+    "speakers": [
+     "ru:dima=Дима"
+    ],
+    "order": 103
+   },
+   "license": "OpenRAIL-M (weights), Apache-2.0 (code)",
+   "source": "https://huggingface.co/zaakirio/kokoro-ru (ONNX: github.com/buchwandler/kokoro-onnx-models, release model-files-russian-zaakirio-dima-v2) @ 639c178e19",
+   "files": [
+    {
+     "role": "model",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-dima/model.onnx",
+     "size": 325509695,
+     "sha256": "5f00de41cbb322ee8f51036c86277db90676851665913e92d937924fe8f3b981"
+    },
+    {
+     "role": "voices",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-dima/voices.bin",
+     "size": 522240,
+     "sha256": "e774e8859604164aa27c393fa4393c3a4ff2162d37911a39574551edbc801dcb"
+    },
+    {
+     "role": "tokens",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-ru-dima/tokens.txt",
+     "size": 687,
+     "sha256": "6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425"
+    }
+   ],
+   "bundles": [
+    {
+     "role": "espeak",
+     "prefix": "espeak-ng-data/",
+     "count": 355,
+     "size": 17991651,
+     "sha256": "c9aadfe9b24083b97b88ca8bef294e462a410b7d67dd6d51db17c4607c71dc40"
+    }
+   ]
+  },
+  {
+   "id": "tts-kokoro-de-thorsten",
+   "meta": {
+    "family": "kokoro",
+    "title": "Kokoro · немецкий · Thorsten",
+    "description": "Kokoro, дообученный Торстеном Мюллером на своих студийных записях (Thorsten-Voice): немецкий мужской голос, как в Marmalade. Apache-2.0, записи — CC0.",
+    "group": "Голоса из bayaya-models (GitHub)",
+    "license": "Apache-2.0",
+    "languages": [
+     "de"
+    ],
+    "speakers": [
+     "de:thorsten=Thorsten"
+    ],
+    "order": 110
+   },
+   "license": "Apache-2.0",
+   "source": "https://huggingface.co/Thorsten-Voice/Kokoro (ONNX: github.com/buchwandler/kokoro-onnx-models, release model-files-german-thorsten-v1.1.4) @ 51bdee3462",
+   "files": [
+    {
+     "role": "model",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-de-thorsten/model.int8.onnx",
+     "size": 114125879,
+     "sha256": "f589e9d94e454f6b7801b54819d2e6d79e8b6032ca2e8cf9dd0b3bbbb4b14247"
+    },
+    {
+     "role": "voices",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-de-thorsten/voices.bin",
+     "size": 522240,
+     "sha256": "3195c20800f7684494a94b64f30928b9b22ffab1aa46175c784c93ba084e44c5"
+    },
+    {
+     "role": "tokens",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-de-thorsten/tokens.txt",
+     "size": 687,
+     "sha256": "6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425"
+    }
+   ],
+   "bundles": [
+    {
+     "role": "espeak",
+     "prefix": "espeak-ng-data/",
+     "count": 355,
+     "size": 17991651,
+     "sha256": "c9aadfe9b24083b97b88ca8bef294e462a410b7d67dd6d51db17c4607c71dc40"
+    }
+   ]
+  },
+  {
+   "id": "tts-kokoro-de-thorsten-full",
+   "meta": {
+    "family": "kokoro",
+    "title": "Kokoro · немецкий · Thorsten · без сжатия",
+    "description": "Немецкий голос Thorsten. Без сжатия весов: в 3 раза больше, но на многих процессорах быстрее сжатой. Apache-2.0, записи — CC0.",
+    "group": "Голоса из bayaya-models (GitHub)",
+    "license": "Apache-2.0",
+    "languages": [
+     "de"
+    ],
+    "speakers": [
+     "de:thorsten=Thorsten"
+    ],
+    "order": 111
+   },
+   "license": "Apache-2.0",
+   "source": "https://huggingface.co/Thorsten-Voice/Kokoro (ONNX: github.com/buchwandler/kokoro-onnx-models, release model-files-german-thorsten-v1.1.4) @ 51bdee3462",
+   "files": [
+    {
+     "role": "model",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-de-thorsten/model.onnx",
+     "size": 325509698,
+     "sha256": "02fed940d7a2edff2e690c7a35c7b4fa7db2bab96b930ebebcb023b0ad021027"
+    },
+    {
+     "role": "voices",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-de-thorsten/voices.bin",
+     "size": 522240,
+     "sha256": "3195c20800f7684494a94b64f30928b9b22ffab1aa46175c784c93ba084e44c5"
+    },
+    {
+     "role": "tokens",
+     "url": "https://github.com/fgeeer77/bayaya-models/releases/download/tts-kokoro-de-thorsten/tokens.txt",
+     "size": 687,
+     "sha256": "6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425"
+    }
+   ],
+   "bundles": [
+    {
+     "role": "espeak",
+     "prefix": "espeak-ng-data/",
+     "count": 355,
+     "size": 17991651,
+     "sha256": "c9aadfe9b24083b97b88ca8bef294e462a410b7d67dd6d51db17c4607c71dc40"
+    }
+   ]
+  }
+ ]
+}
