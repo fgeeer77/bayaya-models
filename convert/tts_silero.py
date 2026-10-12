@@ -21,6 +21,7 @@ Stress: Russian, Ukrainian and Belarusian words need a "+" before the stressed v
 import json
 import math
 import os
+import re
 import sys
 
 import numpy as np
@@ -44,6 +45,42 @@ LANGUAGES = {
     "udm": "udm", "ukr": "uk", "uzb": "uz", "xal": "xal",
 }
 N_FFT, HOP = 2400, 600
+
+
+VOWELS = "аеёиоуыэюя"
+WORD = re.compile(r"[а-яёіїєўґ+'-]+")
+
+
+def load_stress(path):
+    """tts_stress.py's dictionary: word (ё as е) -> (number of the stressed vowel, is it ё)."""
+    table = {}
+    for line in open(path, encoding="utf-8"):
+        key, value = line.rstrip("\n").split("\t")
+        table[key] = (int(value.rstrip("ё")), value.endswith("ё"))
+    return table
+
+
+def accent(word, stress):
+    """A "+" before the stressed vowel of a lower-case Russian word, as the app does it."""
+    vowels = [i for i, c in enumerate(word) if c in VOWELS]
+    found = stress.get(word.replace("ё", "е"))
+    if found and found[0] <= len(vowels):
+        i = vowels[found[0] - 1]
+        return word[:i] + "+" + ("ё" if found[1] else word[i]) + word[i + 1:]
+    if "-" in word:
+        return "-".join(accent(part, stress) for part in word.split("-"))
+    if len(vowels) == 1:
+        return word[:vowels[0]] + "+" + word[vowels[0]:]
+    if "ё" in word:
+        i = word.index("ё")
+        return word[:i] + "+" + word[i:]
+    return word
+
+
+def prepare(text, stress):
+    """Russian text as the app gives it to the model (SileroText.prepare, without numbers)."""
+    s = text.lower().replace("–", "—").replace("...", "…").replace("«", '"').replace("»", '"').replace("’", "'")
+    return WORD.sub(lambda m: m.group(0) if "+" in m.group(0) else accent(m.group(0), stress), s)
 
 
 def tokens(text):

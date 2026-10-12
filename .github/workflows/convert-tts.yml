@@ -1,8 +1,8 @@
 name: Convert voices
 
 # Converts speech models (voices) for Bayaya Platinum, lets a speech recogniser listen to every voice
-# in sherpa-onnx (the runtime the app uses), and publishes each as a release with SHA-256 checksums.
-# The app lists them only through the signed tts-catalog.json.
+# in the runtime the app uses (sherpa-onnx; Silero: the app's own steps on ONNX Runtime), and publishes
+# each as a release with SHA-256 checksums. The app lists them only through the signed tts-catalog.json.
 on:
   push:
     branches: [main]
@@ -23,6 +23,11 @@ env:
   # converted Kokoro voices use the same directory instead of shipping their own.
   ESPEAK_SHA256: c9aadfe9b24083b97b88ca8bef294e462a410b7d67dd6d51db17c4607c71dc40
   KOKORO_SRC: https://github.com/buchwandler/kokoro-onnx-models/releases/download
+  SILERO_URL: https://models.silero.ai/models/tts/ru/v5_cis_base_nostress.jit
+  SILERO_SHA256: d7d361caf78b8480bcd65a0c367af665a2bf6f06c8507306e3781dc7c6ce781b
+  # Vosk-TTS's Russian pronunciation dictionary (Apache-2.0), source of the Silero stress dictionary.
+  VOSK_URL: https://alphacephei.com/vosk/models/vosk-model-tts-ru-0.9-multi.zip
+  VOSK_SHA256: 0aa332451ce46bfdbd620e74765fc16a4087988067c299969121ed0f8ed5bdf2
 
 jobs:
   convert:
@@ -83,6 +88,12 @@ jobs:
             max_cer: "0.2"
             source: https://huggingface.co/Thorsten-Voice/Kokoro
             license: Apache-2.0
+          - id: tts-silero-v5-cis
+            kind: silero
+            voice: ru
+            asr: gigaam
+            texts: ru
+            max_cer: "0.15"
     env:
       ID: ${{ matrix.id }}
       GH_TOKEN: ${{ github.token }}
@@ -107,11 +118,15 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         run: |
           pip install --quiet numpy==1.26.4 onnx onnxruntime==1.20.1 sherpa-onnx==1.13.8 soundfile
+          if [ "${{ matrix.kind }}" = silero ]; then
+            pip install --quiet --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          fi
           pip list 2>/dev/null | grep -iE "^(onnx|onnxruntime|sherpa-onnx) "
 
       - name: Reference files and the recogniser
         if: steps.gate.outputs.skip != 'true'
         run: |
+          if [ "${{ matrix.kind }}" = kokoro ]; then
           # Kokoro 1.0: tokens.txt and the eSpeak NG data (checked against the digest the app pins).
           curl -sSL "$SHERPA/tts-models/kokoro-int8-multi-lang-v1_0.tar.bz2" | tar xj
           python3 - <<'PY'
@@ -129,6 +144,7 @@ jobs:
           with open("espeak.env", "w") as f:
               f.write(f"ESPEAK_COUNT={len(entries)}\nESPEAK_SIZE={sum(e[2] for e in entries)}\n")
           PY
+          fi
           if [ "${{ matrix.asr }}" = gigaam ]; then
             curl -sSL "$SHERPA/asr-models/sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16.tar.bz2" | tar xj
             echo "ASR_DIR=sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16" >> "$GITHUB_ENV"
@@ -157,10 +173,31 @@ jobs:
             echo "FILES='model.onnx model.int8.onnx voices.bin tokens.txt'"
           } > source.env
 
+      - name: Convert Silero
+        if: steps.gate.outputs.skip != 'true' && matrix.kind == 'silero'
+        run: |
+          curl -sSL -o silero.jit "$SILERO_URL"
+          echo "$SILERO_SHA256  silero.jit" | sha256sum -c -
+          python3 convert/tts_silero.py export silero.jit out
+          python3 convert/tts_silero.py check silero.jit out
+          curl -sSL -o vosk.zip "$VOSK_URL"
+          echo "$VOSK_SHA256  vosk.zip" | sha256sum -c -
+          unzip -q -j vosk.zip "*/dictionary" -d vosk
+          python3 convert/tts_stress.py vosk/dictionary out/stress-ru.tsv
+          python3 convert/verify_tts.py silero out out/stress-ru.tsv ${{ matrix.voice }} ${{ matrix.asr }} "$ASR_DIR" \
+            convert/texts/${{ matrix.texts }}.txt ${{ matrix.max_cer }} | tee -a verify.txt
+          ls -la out
+          {
+            echo "SOURCE='https://github.com/snakers4/silero-models (v5_cis_base_nostress.jit), stress: Vosk-TTS ru 0.9 dictionary (alphacephei.com/vosk)'"
+            echo "REVISION='$SILERO_SHA256'"
+            echo "LICENSE='MIT (Silero model), Apache-2.0 (Vosk-TTS dictionary, stress-ru.tsv)'"
+            echo "FILES='encoder.onnx decoder.onnx silero.json stress-ru.tsv'"
+          } > source.env
+
       - name: Publish release
         if: steps.gate.outputs.skip != 'true'
         run: |
-          set -a; . ./source.env; . ./espeak.env; set +a
+          set -a; . ./source.env; if [ -f espeak.env ]; then . ./espeak.env; fi; set +a
           cd out
           python3 - <<'PY'
           import hashlib, json, os
@@ -177,7 +214,8 @@ jobs:
               "converter": f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
               "commit": os.environ["GITHUB_SHA"], "files": files,
               "bundles": [{"role": "espeak", "prefix": "espeak-ng-data/", "count": int(os.environ["ESPEAK_COUNT"]),
-                           "size": int(os.environ["ESPEAK_SIZE"]), "sha256": os.environ["ESPEAK_SHA256"]}],
+                           "size": int(os.environ["ESPEAK_SIZE"]), "sha256": os.environ["ESPEAK_SHA256"]}]
+              if "ESPEAK_COUNT" in os.environ else [],
           }
           json.dump(manifest, open(f"{os.environ['ID']}.json", "w"), indent=1)
           print(json.dumps(manifest, indent=1))
@@ -186,7 +224,7 @@ jobs:
           {
             echo "Converted automatically from $SOURCE (licence $LICENSE)."
             echo
-            echo "Every voice read known sentences in sherpa-onnx 1.13.8; a speech recogniser wrote down what it heard:"
+            echo "Every voice read known sentences in the app's runtime; a speech recogniser wrote down what it heard:"
             echo '```'; grep -E "mean CER|CER [0-9]" ../verify.txt; echo '```'
             echo '```'; cat SHA256SUMS; echo '```'
           } > notes.md

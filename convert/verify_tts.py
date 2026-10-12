@@ -5,6 +5,10 @@ if that differs from the text by more than the threshold (character error rate, 
 
     python3 verify_tts.py kokoro <model dir> <model file> <espeak voice> <asr: gigaam|whisper> <asr dir>
         <sentences file> <max cer> [<out dir for the wav files>]
+    python3 verify_tts.py silero <model dir> <stress tsv> ru gigaam <asr dir> <sentences file> <max cer> [<out dir>]
+
+Silero runs through tts_silero.py's pipeline (the app's steps on ONNX Runtime), with every Russian
+speaker and the app's text preparation (stress from the dictionary).
 """
 import os
 import sys
@@ -16,7 +20,28 @@ import soundfile as sf
 from verify import cer
 
 
+class Silero:
+    def __init__(self, directory, stress_file, language):
+        import tts_silero
+
+        self.tts = tts_silero
+        self.synthesizer = tts_silero.Synthesizer(directory)
+        self.stress = tts_silero.load_stress(stress_file)
+        prefix = {code: name for name, code in tts_silero.LANGUAGES.items()}[language] + "_"
+        self.sids = [i for i, name in enumerate(tts_silero.SPEAKERS) if name.startswith(prefix)]
+
+    def generate(self, text, config):
+        class Audio:
+            sample_rate = 48000
+
+        audio = Audio()
+        audio.samples = self.synthesizer(self.tts.prepare(text, self.stress), config.sid)
+        return audio
+
+
 def synthesizer(kind: str, directory: str, model: str, voice: str, espeak: str):
+    if kind == "silero":
+        return Silero(directory, model, voice)
     if kind == "kokoro":
         config = sherpa_onnx.OfflineTtsModelConfig(
             kokoro=sherpa_onnx.OfflineTtsKokoroModelConfig(
@@ -63,7 +88,8 @@ def main():
     asr = recognizer(asr_kind, asr_dir, voice.split("-")[0])
     scores = []
     work = audio = 0.0
-    for sid in range(tts.num_speakers):
+    sids = tts.sids if hasattr(tts, "sids") else range(tts.num_speakers)
+    for sid in sids:
         for i, text in enumerate(texts):
             config = sherpa_onnx.GenerationConfig()
             config.sid = sid
@@ -82,7 +108,7 @@ def main():
             scores.append(score)
             print(f"speaker {sid}: CER {score:.3f}\n  text:  {text}\n  heard: {heard}")
     mean = sum(scores) / len(scores)
-    print(f"{model}: mean CER {mean:.3f} (max {max_cer}), {tts.num_speakers} speakers, "
+    print(f"{model}: mean CER {mean:.3f} (max {max_cer}), {len(sids)} speakers, "
           f"real-time factor {work / max(audio, 1e-3):.2f} on the runner")
     if mean > float(max_cer):
         raise SystemExit("the converted voice is not understood well enough")
