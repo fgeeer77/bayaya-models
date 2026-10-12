@@ -20,6 +20,7 @@ Stress: Russian, Ukrainian and Belarusian words need a "+" before the stressed v
 import json
 import os
 import sys
+from typing import Tuple
 
 import numpy as np
 
@@ -59,7 +60,7 @@ def export(jit, out):
             super().__init__()
             self.durations = m.dur_predictor
 
-        def forward(self, tokens, speaker):
+        def forward(self, tokens: torch.Tensor, speaker: torch.Tensor) -> torch.Tensor:
             return self.durations(tokens, speaker, None, 1.0, None)
 
     class Encoder(torch.nn.Module):
@@ -68,10 +69,11 @@ def export(jit, out):
             self.pitch = m.pitch_predictor
             self.encoder = m.mel_encoder
 
-        def forward(self, tokens, speaker):
+        def forward(self, tokens: torch.Tensor, speaker: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
             # The pitch predictor does not look at the durations (it passes None on).
             pitch = self.pitch(tokens, speaker, torch.zeros_like(tokens), 1.0, None)
-            return self.encoder(tokens, speaker, torch.zeros(1, dtype=torch.long), torch.zeros(1, dtype=torch.long), pitch, None)
+            zero = torch.zeros(1, dtype=torch.long)
+            return self.encoder(tokens, speaker, zero, zero, pitch, None)
 
     class Decoder(torch.nn.Module):
         def __init__(self, m):
@@ -79,7 +81,7 @@ def export(jit, out):
             self.decoder = m.mel_decoder
             self.vocoder = m.vocoder
 
-        def forward(self, frames):
+        def forward(self, frames: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
             return self.vocoder(self.decoder(frames), 48000, 0.0, True)
 
     x = torch.from_numpy(tokens("пр+ивет, как дел+а?"))
@@ -98,9 +100,23 @@ def export(jit, out):
     ]
     for name, module, args, inputs, outputs, axes in parts:
         module.eval()
-        torch.onnx.export(module, args, os.path.join(out, f"{name}.onnx"), opset_version=17, input_names=inputs,
-                          output_names=outputs, dynamic_axes=axes, do_constant_folding=True)
-        print(name, os.path.getsize(os.path.join(out, f"{name}.onnx")), "bytes")
+        path = os.path.join(out, f"{name}.onnx")
+        # The networks are TorchScript: tracing a Python wrapper cannot step into them, so the wrapper
+        # itself is scripted (and, if the exporter still refuses, frozen into one inlined graph).
+        errors = []
+        for how in ["scripted", "frozen"]:
+            try:
+                scripted = torch.jit.script(module)
+                if how == "frozen":
+                    scripted = torch.jit.freeze(scripted.eval())
+                torch.onnx.export(scripted, args, path, opset_version=17, input_names=inputs, output_names=outputs,
+                                  dynamic_axes=axes, do_constant_folding=True)
+                print(name, how, os.path.getsize(path), "bytes")
+                break
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"{how}: {type(e).__name__}: {str(e)[:1500]}")
+        else:
+            raise SystemExit(f"{name} could not be exported:\n" + "\n".join(errors))
     meta = {"symbols": SYMBOLS, "bos": 2, "eos": 1, "sample_rate": 48000, "n_fft": N_FFT, "hop": HOP,
             "speakers": [f"{LANGUAGES[s.split('_')[0]]}:{s}" for s in SPEAKERS]}
     json.dump(meta, open(os.path.join(out, "silero.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
