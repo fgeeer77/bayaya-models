@@ -55,6 +55,18 @@ def export(jit, out):
     model = torch.jit.load(jit, map_location="cpu")
     model.eval()
 
+    # The scripted layers ask whether mixed precision is on; in an exported graph it never is.
+    from torch.onnx import register_custom_op_symbolic
+
+    def autocast_off(g, *args):
+        return g.op("Constant", value_t=torch.tensor(False))
+
+    for op in ["aten::is_autocast_enabled", "aten::is_autocast_cpu_enabled"]:
+        register_custom_op_symbolic(op, autocast_off, 17)
+    graph = str(model.inlined_graph)
+    for op in ["is_autocast", "_transformer_encoder_layer_fwd", "_native_multi_head_attention", "scaled_dot_product"]:
+        print(op, graph.count(op))
+
     class Durations(torch.nn.Module):
         def __init__(self, m):
             super().__init__()
