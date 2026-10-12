@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        what: [silero, stress, vosk]
+        what: [silero-parts, stress-parts]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,16 +25,16 @@ jobs:
         run: |
           pip install --quiet --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
           pip install --quiet numpy==1.26.4 onnx onnxruntime==1.20.1 onnxscript
-          if [ "${{ matrix.what }}" = stress ]; then pip install --quiet silero-stress; fi
+          if [ "${{ matrix.what }}" = stress-parts ]; then pip install --quiet silero-stress; fi
       - name: Silero cis_base
-        if: matrix.what == 'silero'
+        if: matrix.what == 'silero-parts'
         run: |
           curl -sSL -o v5_cis_base_nostress.jit https://models.silero.ai/models/tts/ru/v5_cis_base_nostress.jit
           ls -la v5_cis_base_nostress.jit && sha256sum v5_cis_base_nostress.jit
-          python3 convert/explore_tts.py silero v5_cis_base_nostress.jit
+          python3 convert/explore_tts.py silero-parts v5_cis_base_nostress.jit
       - name: Silero Stress
-        if: matrix.what == 'stress'
-        run: python3 convert/explore_tts.py stress
+        if: matrix.what == 'stress-parts'
+        run: python3 convert/explore_tts.py stress-parts
       - name: Vosk-TTS
         if: matrix.what == 'vosk'
         run: |

@@ -136,5 +136,157 @@ def vosk(directory):
         print("lines:", i + 1)
 
 
+def silero_parts(path):
+    """Second look: the glue code, the ISTFT settings, and an ONNX export of each network on its own."""
+    import numpy as np
+    import onnxruntime as ort
+    import torch
+
+    model = torch.jit.load(path, map_location="cpu")
+    model.eval()
+    section("constants")
+    code, constants = model.code_with_constants
+    print({k: (v if not hasattr(v, "shape") or v.numel() < 20 else tuple(v.shape)) for k, v in constants.const_mapping.items()})
+    for name in ["preprocess_durs", "fx_pauses"]:
+        section(name)
+        try:
+            print(getattr(model, name).code[:4000])
+        except Exception as e:  # noqa: BLE001
+            print(e)
+    section("istft")
+    istft = model.istft
+    for attr in ["n_fft", "hop_length", "win_length", "padding"]:
+        print(attr, getattr(istft, attr))
+    w = istft.window
+    print("window", tuple(w.shape), w[:5].tolist(), float(w.sum()), float((w ** 2).sum()))
+    print(istft.code[1500:4000])
+    section("vocoder head")
+    print(model.vocoder.head.code[:3000])
+    section("dur_pred")
+    print(model.dur_predictor.dur_pred.code[:2500])
+    section("mel_encoder rest")
+    print(model.mel_encoder.code[1500:4000])
+
+    symbols = "|||!'+,-.:;?hабвгдежзийклмнопрстуфхцчшщъыьэюяёєіїјўґғҕҗҙқҝҡңҥҫүұҳҷҹһӑӗәӝӟӣӥӧөӯӱӳӵӏ—… "
+    ids = {s: i for i, s in enumerate(symbols)}
+    text = "в н+едрах т+ундры в+ыдры в г+етрах т+ырят в в+ёдра +ядра к+едров."
+    x = torch.tensor([[2] + [ids[c] for c in text if c in ids] + [1]])
+    spk = torch.LongTensor([26])
+    with torch.no_grad():
+        reference = model(x, spk)
+        seq, symb = model.preprocess_durs(x)
+        print("preprocess:", tuple(x.shape), "->", tuple(seq.shape), "symb_durs", symb)
+        log_dur = model.dur_predictor(seq, spk, None, 1.0, None)
+        dur = torch.round(torch.exp(log_dur) - 1).squeeze(0).long()
+        print("log_dur", tuple(log_dur.shape), "dur", dur.tolist())
+        pitch = model.pitch_predictor(seq, spk, dur.unsqueeze(0), 1.0, None)
+        lang = constants.const_mapping.get("c0")
+        enc, proj = model.mel_encoder(seq, spk, lang, torch.tensor([0]), pitch, None)
+        print("pitch", tuple(pitch.shape), "enc", tuple(enc.shape), "proj", tuple(proj.shape))
+        dur0 = dur.clone()
+        if dur0[0] > 5:
+            dur0[0] = 5
+        dur0[dur0 < 0] = 0
+        expanded = torch.repeat_interleave(enc[0], dur0, 0)[None] + torch.repeat_interleave(proj[0], dur0, 0)[None]
+        mel = model.mel_decoder(expanded)
+        mag, re, im = model.vocoder(mel, 48000, 0.0, True)
+        print("mel", tuple(mel.shape), "mag", tuple(mag.shape))
+        audio = model.istft(mag * torch.complex(re, im))
+        print("by parts vs whole:", tuple(audio.shape), tuple(reference.shape),
+              float((audio[..., :reference.shape[-1]] - reference).abs().max()) if audio.shape == reference.shape else "shapes differ")
+
+    class Durations(torch.nn.Module):
+        def __init__(self, m):
+            super().__init__()
+            self.m = m
+
+        def forward(self, tokens, speaker):
+            return self.m.dur_predictor(tokens, speaker, None, 1.0, None)
+
+    class Encoder(torch.nn.Module):
+        def __init__(self, m, lang):
+            super().__init__()
+            self.m = m
+            self.lang = lang
+
+        def forward(self, tokens, speaker, durations):
+            pitch = self.m.pitch_predictor(tokens, speaker, durations, 1.0, None)
+            return self.m.mel_encoder(tokens, speaker, self.lang, torch.tensor([0]), pitch, None)
+
+    class Decoder(torch.nn.Module):
+        def __init__(self, m):
+            super().__init__()
+            self.m = m
+
+        def forward(self, expanded):
+            mel = self.m.mel_decoder(expanded)
+            return self.m.vocoder(mel, 48000, 0.0, True)
+
+    parts = {
+        "durations": (Durations(model), (seq, spk), ["tokens", "speaker"], ["log_durations"], {"tokens": {1: "T"}, "log_durations": {1: "T"}}),
+        "encoder": (Encoder(model, lang), (seq, spk, dur0.unsqueeze(0)), ["tokens", "speaker", "durations"], ["encoded", "pitch"],
+                    {"tokens": {1: "T"}, "durations": {1: "T"}, "encoded": {1: "T"}, "pitch": {1: "T"}}),
+        "decoder": (Decoder(model), (expanded,), ["frames"], ["magnitude", "real", "imag"],
+                    {"frames": {1: "F"}, "magnitude": {2: "F2"}, "real": {2: "F2"}, "imag": {2: "F2"}}),
+    }
+    section("export by parts")
+    for name, (module, args, inputs, outputs, axes) in parts.items():
+        for opset in [17]:
+            try:
+                torch.onnx.export(module, args, f"/tmp/{name}.onnx", opset_version=opset, input_names=inputs,
+                                  output_names=outputs, dynamic_axes=axes)
+                session = ort.InferenceSession(f"/tmp/{name}.onnx")
+                got = session.run(None, {i: a.numpy() for i, a in zip(inputs, args)})
+                with torch.no_grad():
+                    want = module(*args)
+                want = want if isinstance(want, (tuple, list)) else [want]
+                diffs = [float(np.abs(g - w.numpy()).max()) for g, w in zip(got, want)]
+                print(f"{name}: OK {os.path.getsize(f'/tmp/{name}.onnx')} bytes, max diff {diffs}")
+            except Exception as e:  # noqa: BLE001
+                print(f"{name}: {type(e).__name__}: {str(e)[:2000]}")
+    # Other lengths: does the exported graph follow the input length?
+    try:
+        x2 = torch.tensor([[2] + [ids[c] for c in "пр+ивет." if c in ids] + [1]])
+        seq2, _ = model.preprocess_durs(x2)
+        s = ort.InferenceSession("/tmp/durations.onnx")
+        got = s.run(None, {"tokens": seq2.numpy(), "speaker": spk.numpy()})[0]
+        with torch.no_grad():
+            want = model.dur_predictor(seq2, spk, None, 1.0, None).numpy()
+        print("durations on another length:", got.shape, float(np.abs(got - want).max()))
+    except Exception as e:  # noqa: BLE001
+        print("other length:", e)
+
+
+def stress_parts():
+    """How Silero Stress is built: the package's own sources and its pieces."""
+    import torch
+    import silero_stress
+
+    root = os.path.dirname(silero_stress.__file__)
+    importer = torch.package.PackageImporter(os.path.join(root, "data", "accentor.pt"))
+    section("package files")
+    print(importer.file_structure())
+    for name in sorted(n for n in importer.zip_reader.get_all_records() if n.endswith(".py")):
+        section(name)
+        try:
+            print(importer.zip_reader.get_record(name).decode("utf-8")[:6000])
+        except Exception as e:  # noqa: BLE001
+            print(e)
+    accentor = silero_stress.load_accentor()
+    section("pieces")
+    for name in ["accentor", "homosolver"]:
+        part = getattr(accentor, name)
+        print(name, type(part), [a for a in dir(part) if not a.startswith("__")][:50])
+        for attr in dir(part):
+            if attr.startswith("__"):
+                continue
+            value = getattr(part, attr, None)
+            if isinstance(value, (dict, list, set)):
+                print(f"  {attr}: {type(value).__name__} of {len(value)}", list(value)[:5] if not isinstance(value, dict) else list(value.items())[:5])
+            elif isinstance(value, torch.nn.Module):
+                print(f"  {attr}: module params={sum(p.numel() for p in value.parameters())}")
+
+
 if __name__ == "__main__":
-    {"silero": lambda: silero(sys.argv[2]), "stress": stress, "vosk": lambda: vosk(sys.argv[2])}[sys.argv[1]]()
+    {"silero": lambda: silero(sys.argv[2]), "stress": stress, "vosk": lambda: vosk(sys.argv[2]),
+     "silero-parts": lambda: silero_parts(sys.argv[2]), "stress-parts": stress_parts}[sys.argv[1]]()
