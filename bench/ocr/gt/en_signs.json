@@ -1,0 +1,31 @@
+{
+ "name": "en_signs",
+ "lang": "en",
+ "script": "latin",
+ "kind": "signs",
+ "size": [
+  4032,
+  3024
+ ],
+ "paragraphs": [
+  [
+   "ENTRANCE",
+   "STAFF ONLY"
+  ],
+  [
+   "Pharmacy",
+   "open 24 hours"
+  ],
+  [
+   "Exit to trains",
+   "platforms 3 to 7"
+  ],
+  [
+   "Caution, wet floor"
+  ],
+  [
+   "Ticket office open",
+   "from 9 am to 9 pm"
+  ]
+ ]
+}

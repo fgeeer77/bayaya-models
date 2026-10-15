@@ -1,0 +1,80 @@
+name: Bench OCR (temporary)
+
+# Measurement for Bayaya Platinum's camera/photo translation: fetches the PP-OCR ONNX models the app
+# pins and runs Offline Translator's own engine (translator-rs, MIT) over the test pictures in
+# bench/ocr. Results and models go to the pre-release "bench-ocr". Removed after the study.
+on:
+  push:
+    branches: [claude/ocr-asr-bench]
+    paths: [bench/**, .github/workflows/bench-ocr.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  TAG: bench-ocr
+  TRS_COMMIT: 3030363
+
+jobs:
+  models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch ONNX models from Hugging Face
+        run: python3 bench/fetch_hf_ocr.py hf
+      - name: Publish
+        run: |
+          gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --prerelease --target "$GITHUB_SHA" \
+            --title "Bench OCR (temporary)" --notes "Temporary measurement files for Bayaya Platinum; deleted after the study."
+          gh release upload "$TAG" hf/* --clobber
+
+  original:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: models
+    steps:
+      - uses: actions/checkout@v4
+      - name: translator-rs with the evaluation binary
+        run: |
+          git clone --filter=blob:none https://github.com/DavidVentura/translator-rs.git trs
+          git -C trs checkout "$TRS_COMMIT"
+          git -C trs log -1 --format='%H %ad %s'
+          cp bench/bayaya_eval.rs trs/src/bin/bayaya_eval.rs
+          printf '\n[[bin]]\nname = "bayaya_eval"\npath = "src/bin/bayaya_eval.rs"\nrequired-features = ["ppocr"]\n' >> trs/Cargo.toml
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            trs/target
+          key: trs-${{ env.TRS_COMMIT }}-${{ hashFiles('bench/bayaya_eval.rs') }}
+          restore-keys: trs-${{ env.TRS_COMMIT }}-
+      - name: Build
+        run: cd trs && cargo build --release --no-default-features --features ppocr --bin bayaya_eval
+      - name: Offline Translator's OCR models
+        run: |
+          mkdir -p mnn && cd mnn
+          base=https://offline-translator.davidv.dev/ocr/1
+          for f in PP-OCRv6/PP-OCRv6_tiny_det_int8.mnn PP-OCRv6/PP-OCRv6_tiny_rec_int8.mnn PP-OCRv6/PP-OCRv6_tiny_keys.txt \
+                   PP-OCRv5/PP-OCRv5_mobile_det_int8.mnn PP-OCRv5/latin_PP-OCRv5_mobile_rec_infer_int8.mnn PP-OCRv5/latin_PP-OCRv5_keys.txt \
+                   PP-OCRv5/eslav_PP-OCRv5_mobile_rec_infer_int8.mnn PP-OCRv5/eslav_PP-OCRv5_keys.txt; do
+            curl -sSfL --retry 4 -O "$base/$f"
+          done
+          ls -la && sha256sum *
+      - name: Run
+        run: |
+          for g in bench/ocr/gt/*.json; do
+            python3 -c "import json,sys;m=json.load(open(sys.argv[1]));print(m['name']+'\tbench/ocr/images/'+m['name']+'.jpg\t'+m['script'])" "$g"
+          done > manifest.tsv
+          bin=trs/target/release/bayaya_eval
+          m=mnn
+          # As shipped: v6 detector, v6 Latin, v5 East Slavic; the app's defaults (1400 px², confidence 75).
+          $bin $m/PP-OCRv6_tiny_det_int8.mnn $m/PP-OCRv6_tiny_rec_int8.mnn $m/PP-OCRv6_tiny_keys.txt \
+               $m/eslav_PP-OCRv5_mobile_rec_infer_int8.mnn $m/eslav_PP-OCRv5_keys.txt 1400 75 manifest.tsv orig_v6.jsonl
+          # The same engine with the v5 models Bayaya uses: separates the engine from the models.
+          $bin $m/PP-OCRv5_mobile_det_int8.mnn $m/latin_PP-OCRv5_mobile_rec_infer_int8.mnn $m/latin_PP-OCRv5_keys.txt \
+               $m/eslav_PP-OCRv5_mobile_rec_infer_int8.mnn $m/eslav_PP-OCRv5_keys.txt 1400 75 manifest.tsv orig_v5.jsonl
+          gh release upload "$TAG" orig_v6.jsonl orig_v5.jsonl manifest.tsv mnn/* --clobber

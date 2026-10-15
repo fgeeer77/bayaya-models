@@ -1,0 +1,42 @@
+{
+ "name": "en_book.cam640",
+ "lang": "en",
+ "script": "latin",
+ "kind": "book",
+ "size": [
+  640,
+  480
+ ],
+ "paragraphs": [
+  [
+   "The concert has been moved to the cathedral because of the heavy rain forecast for",
+   "tonight. Please keep your ticket until the end of the journey, as inspectors may ask to see",
+   "it. In winter the lake freezes and people skate across it to the island in the middle."
+  ],
+  [
+   "The exhibition shows how the town grew from a fishing village into a busy trading port.",
+   "Visitors can climb the tower for a wide view over the river and the rooftops. A free shuttle",
+   "bus runs between the hotel and the beach every half hour."
+  ],
+  [
+   "By the time the sun rose, the ship was already far from the harbour. Swimming is not",
+   "allowed when the red flag is raised on the beach. The library holds rare maps, letters and",
+   "diaries written by the first settlers of the island."
+  ],
+  [
+   "Trains to the airport leave every twenty minutes from the second platform. The market",
+   "sells spices, dried fruit, olives and cheese made by local shepherds."
+  ],
+  [
+   "The theatre was restored last year and now seats almost nine hundred people. Every room",
+   "has a view of the mountains and a balcony facing the morning sun. Nobody remembered",
+   "exactly when the old clock in the square had stopped working."
+  ],
+  [
+   "Local craftsmen still weave carpets by hand using patterns passed down for generations.",
+   "Our kitchen uses fresh vegetables from farms in the valley whenever the season allows.",
+   "They walked along the shore, talking about the journey that lay ahead of them."
+  ]
+ ],
+ "frame_of": "en_book"
+}

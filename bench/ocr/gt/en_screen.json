@@ -1,0 +1,62 @@
+{
+ "name": "en_screen",
+ "lang": "en",
+ "script": "latin",
+ "kind": "screen",
+ "size": [
+  1080,
+  2400
+ ],
+ "paragraphs": [
+  [
+   "News"
+  ],
+  [
+   "The teacher asked the class to read the",
+   "first chapter again"
+  ],
+  [
+   "Our kitchen uses fresh vegetables from farms in the",
+   "valley whenever the season allows. A small bakery on",
+   "the corner sells warm bread, honey cakes and strong",
+   "black coffee."
+  ],
+  [
+   "A free shuttle bus runs between the hotel",
+   "and the beach"
+  ],
+  [
+   "Trains to the airport leave every twenty minutes from",
+   "the second platform. Water from the mountain springs",
+   "is clean and safe to drink without boiling."
+  ],
+  [
+   "The bridge was designed by a local",
+   "engineer and finished"
+  ],
+  [
+   "Children under twelve travel free when accompanied",
+   "by an adult. Reservations are recommended for dinner,",
+   "especially on Friday and Saturday nights."
+  ],
+  [
+   "Lost property can be collected from the",
+   "information desk on"
+  ],
+  [
+   "The market sells spices, dried fruit, olives and cheese",
+   "made by local shepherds. Bicycles can be rented at the",
+   "station and returned at any of the city's twelve stands."
+  ],
+  [
+   "Her grandfather kept a small notebook in",
+   "which he wrote"
+  ],
+  [
+   "The house at the end of the lane had been empty for",
+   "many years before they arrived. During the summer",
+   "festival the main square is closed to cars from noon",
+   "until midnight."
+  ]
+ ]
+}

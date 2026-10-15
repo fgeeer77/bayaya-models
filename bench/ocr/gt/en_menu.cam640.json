@@ -1,0 +1,76 @@
+{
+ "name": "en_menu.cam640",
+ "lang": "en",
+ "script": "latin",
+ "kind": "menu",
+ "size": [
+  640,
+  480
+ ],
+ "paragraphs": [
+  [
+   "MENU"
+  ],
+  [
+   "Tomato soup with basil"
+  ],
+  [
+   "$9.00"
+  ],
+  [
+   "Grilled chicken salad"
+  ],
+  [
+   "$9.90"
+  ],
+  [
+   "Fish and chips"
+  ],
+  [
+   "$18.90"
+  ],
+  [
+   "Beef burger with fries"
+  ],
+  [
+   "$16.00"
+  ],
+  [
+   "Pancakes with honey"
+  ],
+  [
+   "$6.00"
+  ],
+  [
+   "Apple pie and cream"
+  ],
+  [
+   "$11.00"
+  ],
+  [
+   "Fresh orange juice"
+  ],
+  [
+   "$11.50"
+  ],
+  [
+   "Black coffee"
+  ],
+  [
+   "$12.90"
+  ],
+  [
+   "Green tea"
+  ],
+  [
+   "$5.00"
+  ],
+  [
+   "Lemonade with mint"
+  ],
+  [
+   "$18.90"
+  ]
+ ],
+ "frame_of": "en_menu"
+}
