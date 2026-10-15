@@ -10,6 +10,7 @@ CPU is process time (all threads), measured on the same runner for both, so they
 Temporary: part of a study, deleted with this branch.
 """
 import json
+import os
 import re
 import sys
 import time
@@ -96,6 +97,7 @@ def gemma(model, threads, messages_file):
     import litert_lm
 
     messages = json.load(open(messages_file, encoding="utf-8"))
+    os.makedirs("cache", exist_ok=True)
     start = clock()
     engine = litert_lm.Engine(model, backend=litert_lm.Backend.CPU(thread_count=threads), cache_dir="cache")
     load = since(start)
