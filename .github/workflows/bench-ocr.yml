@@ -6,7 +6,7 @@ name: Bench OCR (temporary)
 on:
   push:
     branches: [claude/ocr-asr-bench]
-    paths: [bench/**, .github/workflows/bench-ocr.yml]
+    paths: [bench/ocr/**, bench/bayaya_eval.rs, bench/fetch_hf_ocr.py]
   workflow_dispatch:
 
 permissions:

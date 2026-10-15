@@ -1,0 +1,41 @@
+name: Bench Gemma (temporary)
+
+# Measurement for Bayaya Platinum's battery use: processor time of Gemma 4 E2B on the app's tasks for a
+# forwarded voice message (clean-up, title and category, summary) by thread count, next to GigaAM v3 on
+# the same runner. Results are in the job log. Removed after the study.
+on:
+  push:
+    branches: [claude/ocr-asr-bench]
+    paths: [bench/gemma/**, .github/workflows/bench-gemma.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gemma:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python packages
+        run: pip install litert-lm-api==0.18.0 sherpa-onnx==1.13.8 soundfile numpy
+      - name: Models
+        run: |
+          mkdir -p m && cd m
+          # The build the app pins (model-pins.json of Bayaya Platinum).
+          curl -sSfL --retry 4 -o gemma.litertlm \
+            https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/b3ca0d2f076785a8f4b2219ddbd2bdb99954eae1/gemma-4-E2B-it.litertlm
+          echo "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c  gemma.litertlm" | sha256sum -c
+          curl -sSfL --retry 4 https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16.tar.bz2 | tar xj
+      - name: Runner
+        run: nproc && lscpu | grep -E "Model name|^CPU\(s\)|Thread|MHz" && free -g
+      - name: GigaAM v3 RNNT
+        run: python3 bench/gemma/gemma_cost.py asr m/sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16 bench/gemma/message1.flac
+      - name: Gemma 4 E2B
+        run: |
+          # The first load also builds the weight cache (as on a phone's first use); 4 threads again at the end.
+          for t in 4 2 1 4; do python3 bench/gemma/gemma_cost.py gemma m/gemma.litertlm $t bench/gemma/messages.json; done
