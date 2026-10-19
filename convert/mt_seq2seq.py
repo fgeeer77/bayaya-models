@@ -565,7 +565,17 @@ def quantize(src, dst, bits):
     # 4-bit blocks for the weights and the vocabulary; int4 tensors need opset 21 (the export is 17).
     # Only the structure is converted (the weights stay in their files: a graph past 2 GB cannot be
     # serialized whole), saved next to them, and the quantizer loads it from there with the weights.
-    model = version_converter.convert_version(onnx.load(src, load_external_data=False), 21)
+    original = onnx.load(src, load_external_data=False)
+    external = {t.name: list(t.external_data) for t in original.graph.initializer if t.data_location == onnx.TensorProto.EXTERNAL}
+    model = version_converter.convert_version(original, 21)
+    del original
+    # The converter drops the references to the weight files: they are put back by name.
+    for t in model.graph.initializer:
+        if t.name in external and not t.raw_data:
+            del t.external_data[:]
+            for entry in external[t.name]:
+                t.external_data.add(key=entry.key, value=entry.value)
+            t.data_location = onnx.TensorProto.EXTERNAL
     opset21 = os.path.join(os.path.dirname(os.path.abspath(src)), "opset21.onnx")
     onnx.save(model, opset21)
     del model

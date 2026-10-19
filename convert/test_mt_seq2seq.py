@@ -81,10 +81,16 @@ def run(family):
             onnx_ids = graphs.greedy(enc_ids, prefix)
             assert onnx_ids == ours, f"{family}: onnx differs\n onnx  {onnx_ids}\n torch {ours}"
         print(f"{family}: fp32 onnx = torch on {len(cases)} inputs")
+        # The real models are past 2 GB: their weights are in files of their own. The same here.
+        import onnx
+        for part in ["encoder", "decoder"]:
+            m = onnx.load(f"{tmp}/fp32/{part}.onnx")
+            os.makedirs(f"{tmp}/ext/{part}", exist_ok=True)
+            onnx.save(m, f"{tmp}/ext/{part}/{part}.onnx", save_as_external_data=True, all_tensors_to_one_file=False, size_threshold=0)
         for bits in ([8] if family == "m2m" else [8, 4]):
             os.makedirs(f"{tmp}/q{bits}", exist_ok=True)
             for part in ["encoder", "decoder"]:
-                mt.quantize(f"{tmp}/fp32/{part}.onnx", f"{tmp}/q{bits}/{part}.onnx", bits)
+                mt.quantize(f"{tmp}/ext/{part}/{part}.onnx", f"{tmp}/q{bits}/{part}.onnx", bits)
             q = mt.OrtGraphs(f"{tmp}/q{bits}", d["layers"], d["heads"], d["headDim"], eos, MAX_NEW, threads=1)
             same = sum(q.greedy(e, p) == graphs.greedy(e, p) for e, _, p in cases)
             sizes = {part: os.path.getsize(f"{tmp}/q{bits}/{part}.onnx") for part in ["encoder", "decoder"]}
