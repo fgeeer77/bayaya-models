@@ -21,6 +21,29 @@ Voices (text to speech) for Bayaya Platinum, listed in `tts-catalog.json`:
 | `tts-kokoro-ru-base`, `tts-kokoro-ru-dima` | [zaakirio/kokoro-ru](https://huggingface.co/zaakirio/kokoro-ru) (ONNX by buchwandler/kokoro-onnx-models) | OpenRAIL-M (weights), Apache-2.0 (code) |
 | `tts-kokoro-de-thorsten` | [Thorsten-Voice/Kokoro](https://huggingface.co/Thorsten-Voice/Kokoro) | Apache-2.0 |
 
+Big multilingual translators for Bayaya Platinum's translator (pinned in the app's own
+`translation-big-models.json`, not in these catalogs):
+
+| Release | Source | Languages | Licence |
+|---|---|---|---|
+| `mt-nllb-600m-1` | [facebook/nllb-200-distilled-600M](https://huggingface.co/facebook/nllb-200-distilled-600M), 8-bit | 202 | CC-BY-NC-4.0 |
+| `mt-nllb-1.3b-1` | [facebook/nllb-200-distilled-1.3B](https://huggingface.co/facebook/nllb-200-distilled-1.3B), 8-bit | 202 | CC-BY-NC-4.0 |
+| `mt-madlad-3b-2` | [google/madlad400-3b-mt](https://huggingface.co/google/madlad400-3b-mt), 4-bit blocks (graphs of `mt-madlad-3b-1`, tokenizer files written again: `-1` named Russian, Catalan and Dutch by MADLAD's upper-case tags) | 453 | Apache-2.0 |
+| `mt-m2m100-418m-1` | [facebook/m2m100_418M](https://huggingface.co/facebook/m2m100_418M), 8-bit | 100 | MIT |
+
+[`convert-mt.yml`](.github/workflows/convert-mt.yml) runs [`mt_seq2seq.py`](convert/mt_seq2seq.py): one
+shape for all four (the encoder computes every decoder layer's cross-attention keys and values; the
+decoder takes its self-attention cache, empty on the first step, and returns the last position's
+logits). The decoder step is our own and must decode the sample sentences exactly as transformers'
+`generate()` does; [`test_mt_seq2seq.py`](convert/test_mt_seq2seq.py) checks the export on tiny random
+models first. The quantized graphs are compared with the original model on FLORES-200 devtest (chrF++,
+50 sentences per direction; the release fails if a direction loses more than 3 points). Next to the
+graphs: the SentencePiece model, `ids.bin` (model id of every piece), `model.json` (sizes, special ids,
+per-language prefixes) and `tokenizer-tests.json` (vectors the app's tokenizer is tested against).
+
+[`online_probe.py`](convert/online_probe.py) ([`probe-online.yml`](.github/workflows/probe-online.yml),
+by hand) sends each online translator the app can use the request the app sends and prints the answer.
+
 ## How a model gets here
 
 Everything runs in [`convert.yml`](.github/workflows/convert.yml); nothing is uploaded by hand.
