@@ -19,14 +19,20 @@ FROM, TO = "en", "ru"
 TIMEOUT = 30
 
 
-def lingva():
-    r = requests.get(f"https://lingva.ml/api/v1/{FROM}/{TO}/{urllib.parse.quote(TEXT, safe='')}", timeout=TIMEOUT)
+# Public servers of the engines whose address the user can change; the first one is the app's default.
+LINGVA = ["https://lingva.ml", "https://lingva.lunar.icu", "https://translate.plausibility.cloud", "https://lingva.garudalinux.org"]
+MOZHI = ["https://mozhi.aryak.me", "https://mozhi.pussthecat.org", "https://mo.zorby.top", "https://mozhi.canine.tools"]
+SIMPLY = ["https://simplytranslate.org", "https://st.privacydev.net", "https://translate.northboot.xyz"]
+
+
+def lingva(base):
+    r = requests.get(f"{base}/api/v1/{FROM}/{TO}/{urllib.parse.quote(TEXT, safe='')}", timeout=TIMEOUT)
     return r, lambda j: j["translation"]
 
 
-def mozhi():
-    r = requests.post("https://mozhi.aryak.me/api/translate/", files={k: (None, v) for k, v in
-                      {"engine": "google", "from": "auto", "to": TO, "text": TEXT}.items()}, timeout=TIMEOUT)
+def mozhi(base, engine="google"):
+    r = requests.post(f"{base}/api/translate/", files={k: (None, v) for k, v in
+                      {"engine": engine, "from": "auto", "to": TO, "text": TEXT}.items()}, timeout=TIMEOUT)
     return r, lambda j: j["translated-text"]
 
 
@@ -57,9 +63,9 @@ def yandex():
     return r, lambda j: j["text"][0]
 
 
-def simplytranslate():
-    r = requests.get("https://simplytranslate.org/api/translate/", params={"engine": "google", "from": "auto", "to": TO, "text": TEXT}, timeout=TIMEOUT)
-    return r, lambda j: j["translated_text"]
+def simplytranslate(base, engine="google"):
+    r = requests.get(f"{base}/api/translate/", params={"engine": engine, "from": "auto", "to": TO, "text": TEXT}, timeout=TIMEOUT)
+    return r, lambda j: j["translated_text"] or (_ for _ in ()).throw(ValueError("empty translation"))
 
 
 def mint():
@@ -97,18 +103,22 @@ def libretranslate():
 
 def main():
     failed = 0
-    for probe in [lingva, mozhi, deepl_web, mymemory, yandex, simplytranslate, mint, glosbe, apertium, pons, lara, libretranslate]:
+    probes = [(f"lingva {b}", lambda b=b: lingva(b)) for b in LINGVA]
+    probes += [(f"mozhi {b} {e}", lambda b=b, e=e: mozhi(b, e)) for b in MOZHI for e in ["google", "yandex"]]
+    probes += [(f"simply {b} {e}", lambda b=b, e=e: simplytranslate(b, e)) for b in SIMPLY for e in ["google", "reverso"]]
+    probes += [(p.__name__, p) for p in [deepl_web, mymemory, yandex, mint, glosbe, apertium, pons, lara, libretranslate]]
+    for name, probe in probes:
         try:
             response, pick = probe()
             try:
                 text = pick(response.json())
-                print(f"OK    {probe.__name__:16} {response.status_code} {text!r}")
+                print(f"OK    {name:48} {response.status_code} {text!r}")
             except Exception as e:  # noqa: BLE001
                 failed += 1
-                print(f"FAIL  {probe.__name__:16} {response.status_code} {type(e).__name__}: {response.text[:300]!r}")
+                print(f"FAIL  {name:48} {response.status_code} {type(e).__name__}: {response.text[:200]!r}")
         except Exception as e:  # noqa: BLE001
             failed += 1
-            print(f"FAIL  {probe.__name__:16} {type(e).__name__}: {str(e)[:300]}")
+            print(f"FAIL  {name:48} {type(e).__name__}: {str(e)[:200]}")
     print(f"{failed} failed (key-only services — DeepL API, Kagi, OneRing — not probed)")
     sys.exit(0)
 
