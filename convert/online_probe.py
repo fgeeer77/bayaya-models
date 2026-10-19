@@ -21,7 +21,7 @@ TIMEOUT = 30
 
 # Public servers of the engines whose address the user can change; the first one is the app's default.
 LINGVA = ["https://lingva.ml", "https://lingva.lunar.icu", "https://translate.plausibility.cloud", "https://lingva.garudalinux.org"]
-MOZHI = ["https://mozhi.aryak.me", "https://mozhi.pussthecat.org", "https://mo.zorby.top", "https://mozhi.canine.tools"]
+MOZHI = ["https://mozhi.pussthecat.org", "https://mozhi.aryak.me", "https://mo.zorby.top", "https://mozhi.canine.tools"]
 SIMPLY = ["https://simplytranslate.org", "https://st.privacydev.net", "https://translate.northboot.xyz"]
 
 
