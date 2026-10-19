@@ -398,7 +398,8 @@ def tokenizer_files(model_id, config, tok, folder):
     by_code = {lang["code"]: lang for lang in languages}
     vectors, mismatches = [], 0
     for text in TOKENIZER_TEXTS + [t for _, _, t in SAMPLES]:
-        spm_ids = sp.encode(text)
+        # The model file as the app reads it: transformers changes its own copy for T5 (no dummy prefix).
+        spm_ids = s.sp.encode(text)
         vectors.append({"text": text, "spm": spm_ids, "model": [ids[i] for i in spm_ids],
                         "decoded": s.decode([ids[i] for i in spm_ids])})
     for src, tgt, text in SAMPLES:
