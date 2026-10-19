@@ -126,5 +126,6 @@ jobs:
           PY
           sha256sum $FILES "$TAG.json" > SHA256SUMS
           { echo; echo '```'; cat SHA256SUMS; echo '```'; } >> notes.md
-          gh release create "$TAG" $FILES "$TAG.json" SHA256SUMS --title "$TAG" --notes-file notes.md
+          # Run outside the checkout: the repository is named.
+          gh release create "$TAG" $FILES "$TAG.json" SHA256SUMS --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes-file notes.md
           echo "MANIFEST-BEGIN"; cat "$TAG.json"; echo "MANIFEST-END"
