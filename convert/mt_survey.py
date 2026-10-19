@@ -37,7 +37,10 @@ def main():
     for m in CARDS:
         r = requests.get(f"https://huggingface.co/{m}/raw/main/README.md", timeout=30)
         print(f"== card {m}: HTTP {r.status_code}")
-        print(r.text[:6000])
+        text = r.text
+        if text.startswith("---"):  # the metadata header (licence, language lists) is already shown above
+            text = text.split("---", 2)[-1]
+        print(text[:5000])
     # Anything newer: search by keywords.
     for q in ["translation onnx", "nllb onnx", "madlad onnx", "translate litert"]:
         r = requests.get("https://huggingface.co/api/models", params={"search": q, "sort": "downloads", "limit": 15}, timeout=30)
