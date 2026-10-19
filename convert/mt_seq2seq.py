@@ -92,7 +92,8 @@ def app_code(code, macro=True, lone=False):
 
 
 def language_table(codes):
-    """Model codes -> app codes; when two map to one, the second keeps its own (non-macro) code."""
+    """Model codes -> app codes; when two map to one, the second keeps its own (non-macro) code, and
+    is left out when that is taken too (MADLAD has "<2RU>" beside "<2ru>": the first one stays)."""
     bases = {}
     for c in codes:
         bases[c.split("_")[0]] = bases.get(c.split("_")[0], 0) + 1
@@ -104,6 +105,8 @@ def language_table(codes):
             a = app_code(c, macro=False, lone=lone)
         if a in seen:
             a = c.lower()
+        if a in seen:
+            continue
         seen.add(a)
         out[c] = a
     return out
@@ -282,7 +285,10 @@ def wrappers(model, family):
 
 
 def dims(model, family):
-    c = model.config
+    return dims_of(model.config, family)
+
+
+def dims_of(c, family):
     if family == "m2m":
         return {"layers": c.decoder_layers, "heads": c.decoder_attention_heads, "headDim": c.d_model // c.decoder_attention_heads,
                 "vocab": c.vocab_size}
@@ -329,7 +335,7 @@ def hf_encode(tok, family, text, src_code, tgt_code):
     return tok(f"{tgt_code} {text}").input_ids
 
 
-def tokenizer_files(model_id, model, tok, folder):
+def tokenizer_files(model_id, config, tok, folder):
     spec = MODELS[model_id]
     family = spec["family"]
     sp_path = getattr(tok, "spm_file", None) or tok.vocab_file
@@ -354,6 +360,8 @@ def tokenizer_files(model_id, model, tok, folder):
         table = {c: fixes.get(c) or v for c, v in language_table(codes).items()}
         languages = []
         for c in codes:
+            if c not in table:
+                continue
             lid = tok.convert_tokens_to_ids(token(c))
             languages.append({"code": table[c], "token": token(c), "sourcePrefix": [lid], "targetEncoderPrefix": [],
                               "targetDecoderPrefix": [lid]})
@@ -366,14 +374,16 @@ def tokenizer_files(model_id, model, tok, folder):
         table = language_table(valid)
         languages = []
         for t in valid:
+            if t not in table:
+                continue
             prefix = tok(f"<2{t}>", add_special_tokens=False).input_ids
             languages.append({"code": table[t], "token": f"<2{t}>", "sourcePrefix": [], "targetEncoderPrefix": prefix,
                               "targetDecoderPrefix": []})
         special = sorted({tok.pad_token_id, tok.eos_token_id, tok.unk_token_id})
-    cfg = model.config
+    cfg = config
     meta = {
         "id": model_id, "title": spec["title"], "family": family, "license": spec["license"], "source": f"https://huggingface.co/{spec['repo']}",
-        **dims(model, family),
+        **dims_of(config, family),
         "eos": int(tok.eos_token_id), "pad": int(tok.pad_token_id), "decoderStart": int(cfg.decoder_start_token_id),
         "unk": int(tok.unk_token_id), "special": [int(s) for s in special],
         # Longest encoder input the app feeds (longer text is split into sentences first).
@@ -491,7 +501,7 @@ def export(model_id, out):
     t0 = time.time()
     model, tok = load(model_id)
     print(f"loaded {spec['repo']} in {time.time() - t0:.0f} s, rss {rss_gb():.1f} GB")
-    mismatches = tokenizer_files(model_id, model, tok, out)
+    mismatches = tokenizer_files(model_id, model.config, tok, out)
     assert mismatches == 0, f"{mismatches} tokenizer mismatches"
     enc, dec = wrappers(model, family)
     d = dims(model, family)
@@ -526,6 +536,16 @@ def export(model_id, out):
     for src, tgt, text in SAMPLES:
         if src in s.langs and tgt in s.langs:
             print(f"onnx {src}->{tgt}: {m.translate(text, src, tgt)!r}")
+    json.dump({"revision": revision(model_id)}, open(f"{out}/source.json", "w"))
+
+
+def tokenizer_only(model_id, out):
+    """Writes the tokenizer files again next to graphs already exported (no weights are loaded)."""
+    from transformers import AutoConfig, AutoTokenizer
+    repo = MODELS[model_id]["repo"]
+    os.makedirs(out, exist_ok=True)
+    mismatches = tokenizer_files(model_id, AutoConfig.from_pretrained(repo), AutoTokenizer.from_pretrained(repo, use_fast=False), out)
+    assert mismatches == 0, f"{mismatches} tokenizer mismatches"
     json.dump({"revision": revision(model_id)}, open(f"{out}/source.json", "w"))
 
 
@@ -605,7 +625,11 @@ def check(model_id, out, flores):
             return [line.rstrip("\n") for line in f][:FLORES_SENTENCES]
 
     cache = f"{out}.reference.json"
-    if os.path.exists(cache):
+    no_reference = os.environ.get("MT_NO_REFERENCE") == "1"
+    if no_reference:
+        # Graphs already compared with the original model in an earlier release: only these files now.
+        reference = None
+    elif os.path.exists(cache):
         reference = json.load(open(cache))
     else:
         model, tok = load(model_id)
@@ -635,10 +659,11 @@ def check(model_id, out, flores):
         t_all += dt
         tok_all += tokens
         refs = lines(b)
-        ref_chrf = sacrebleu.corpus_chrf(reference[f"{a}>{b}"], [refs], word_order=2).score
+        ref_chrf = sacrebleu.corpus_chrf(reference[f"{a}>{b}"], [refs], word_order=2).score if reference else None
         q_chrf = sacrebleu.corpus_chrf(hyps, [refs], word_order=2).score
-        worst = max(worst, ref_chrf - q_chrf)
-        row = {"direction": f"{src}->{tgt}", "chrf_fp32": round(ref_chrf, 1), "chrf_quantized": round(q_chrf, 1),
+        if ref_chrf is not None:
+            worst = max(worst, ref_chrf - q_chrf)
+        row = {"direction": f"{src}->{tgt}", "chrf_fp32": round(ref_chrf, 1) if ref_chrf is not None else None, "chrf_quantized": round(q_chrf, 1),
                "seconds_per_sentence": round(dt / len(hyps), 2), "example": hyps[0]}
         report["directions"].append(row)
         print(json.dumps(row, ensure_ascii=False))
@@ -654,6 +679,8 @@ if __name__ == "__main__":
     cmd, model_id, out = sys.argv[1:4]
     if cmd == "export":
         export(model_id, out)
+    elif cmd == "tokenizer":
+        tokenizer_only(model_id, out)
     elif cmd == "check":
         check(model_id, out, sys.argv[4])
     else:

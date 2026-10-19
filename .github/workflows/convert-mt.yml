@@ -11,6 +11,14 @@ on:
         description: "Model id to convert (empty = all)"
         required: false
         default: ""
+      version:
+        description: "Release number (mt-<id>-<version>)"
+        required: false
+        default: "1"
+      graphs_from:
+        description: "Take the graphs from this earlier release and write only the tokenizer files again (e.g. mt-madlad-3b-1)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -32,7 +40,8 @@ jobs:
           - {id: madlad-3b, swap: 24}
     env:
       ID: ${{ matrix.id }}
-      TAG: mt-${{ matrix.id }}-1
+      TAG: mt-${{ matrix.id }}-${{ inputs.version || '1' }}
+      GRAPHS_FROM: ${{ inputs.graphs_from }}
       GH_TOKEN: ${{ github.token }}
       HF_HUB_DISABLE_PROGRESS_BARS: "1"
       TOKENIZERS_PARALLELISM: "false"
@@ -83,8 +92,20 @@ jobs:
         run: python3 convert/test_mt_seq2seq.py 2>&1 | grep -vE "Warning|warn\(|^  "
 
       - name: Export and quantize
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && env.GRAPHS_FROM == ''
         run: python3 convert/mt_seq2seq.py export "$ID" "$WORK/out" 2>&1 | grep -vE "TracerWarning|^  warnings.warn|^  if |^  return " | tee export.txt
+
+      - name: Graphs of the earlier release, tokenizer files written again
+        if: steps.gate.outputs.skip != 'true' && env.GRAPHS_FROM != ''
+        run: |
+          mkdir -p "$WORK/out" && cd "$WORK/out"
+          gh release download "$GRAPHS_FROM" --repo "$GITHUB_REPOSITORY" --pattern encoder.onnx --pattern decoder.onnx --pattern SHA256SUMS
+          grep -E " (encoder|decoder)\.onnx$" SHA256SUMS | sha256sum -c -
+          rm SHA256SUMS
+          cd "$GITHUB_WORKSPACE"
+          python3 convert/mt_seq2seq.py tokenizer "$ID" "$WORK/out"
+          # Compared with the original model in the earlier release; these files are measured alone.
+          echo "MT_NO_REFERENCE=1" >> "$GITHUB_ENV"
 
       - name: Quality and speed (FLORES-200 devtest)
         if: steps.gate.outputs.skip != 'true'
@@ -118,11 +139,14 @@ jobs:
           r = manifest["report"]
           with open("notes.md", "w") as f:
               f.write(f"{meta['title']}, converted automatically from {meta['source']} (revision {manifest['sourceRevision']}, licence {meta['license']}).\n\n")
+              if os.environ.get("GRAPHS_FROM"):
+                  f.write(f"The graphs are those of {os.environ['GRAPHS_FROM']} (compared with the original model there); "
+                          "the tokenizer files are written again. chrF++ below is of these files.\n\n")
               f.write(f"Greedy decoding, {r['sentences']} FLORES-200 devtest sentences per direction, chrF++ of the original model (fp32) and of these files; "
                       f"speed on the 4-core runner ({r['tokens_per_second']} tokens/s, peak memory {r['peak_rss_gb']} GB):\n\n")
               f.write("| Direction | chrF++ fp32 | chrF++ here | s/sentence |\n|---|---|---|---|\n")
               for d in r["directions"]:
-                  f.write(f"| {d['direction']} | {d['chrf_fp32']} | {d['chrf_quantized']} | {d['seconds_per_sentence']} |\n")
+                  f.write(f"| {d['direction']} | {d['chrf_fp32'] if d['chrf_fp32'] is not None else '—'} | {d['chrf_quantized']} | {d['seconds_per_sentence']} |\n")
           PY
           sha256sum $FILES "$TAG.json" > SHA256SUMS
           { echo; echo '```'; cat SHA256SUMS; echo '```'; } >> notes.md
