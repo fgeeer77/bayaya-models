@@ -1,0 +1,21 @@
+name: Probe online translators
+
+# Sends each online translation service Bayaya Platinum can use the request the app sends and prints
+# the answer (convert/online_probe.py). Run by hand; publishes nothing.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet requests
+      - run: python3 convert/online_probe.py
