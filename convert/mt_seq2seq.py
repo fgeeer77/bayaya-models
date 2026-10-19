@@ -323,7 +323,8 @@ class Spec:
 def hf_encode(tok, family, text, src_code, tgt_code):
     """What transformers' own tokenizer gives for the encoder (the reference)."""
     if family == "m2m":
-        tok.src_lang = src_code
+        # NLLB names the language by its token ("rus_Cyrl"), M2M100 by the bare code ("ru" for "__ru__").
+        tok.src_lang = src_code[2:-2] if src_code.startswith("__") else src_code
         return tok(text).input_ids
     return tok(f"{tgt_code} {text}").input_ids
 
