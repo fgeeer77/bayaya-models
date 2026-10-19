@@ -1,0 +1,130 @@
+name: Convert translation models
+
+# Exports the big multilingual translators for Bayaya Platinum (convert/mt_seq2seq.py) to ONNX Runtime:
+# our decoder step is checked against transformers' generate(), the quantized graphs against the
+# original model on FLORES-200 devtest (chrF++), and each model is published as a release with
+# SHA-256 checksums. The app pins those checksums in its own catalog.
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Model id to convert (empty = all)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  FLORES_URL: https://dl.fbaipublicfiles.com/nllb/flores200_dataset.tar.gz
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {id: nllb-600m, swap: 0}
+          - {id: m2m100-418m, swap: 0}
+          - {id: nllb-1.3b, swap: 8}
+          - {id: madlad-3b, swap: 24}
+    env:
+      ID: ${{ matrix.id }}
+      TAG: mt-${{ matrix.id }}-1
+      GH_TOKEN: ${{ github.token }}
+      HF_HUB_DISABLE_PROGRESS_BARS: "1"
+      TOKENIZERS_PARALLELISM: "false"
+      # The runner's temporary disk: the model, the fp32 graphs and the swap file need tens of GB.
+      WORK: /mnt/work
+      HF_HOME: /mnt/work/hf
+    defaults:
+      run:
+        shell: bash --noprofile --norc -eo pipefail {0}
+    steps:
+      - id: gate
+        run: |
+          if [ -n "${{ inputs.only }}" ] && [ "${{ inputs.only }}" != "$ID" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+          # A published model is never rebuilt in place: the app pins its checksums.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$TAG is already published"; echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Room on the runner
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune --all --force > /dev/null || true
+          sudo mkdir -p "$WORK" && sudo chown "$USER" "$WORK"
+          if [ "${{ matrix.swap }}" != 0 ]; then
+            sudo fallocate -l ${{ matrix.swap }}G /mnt/swapfile2 && sudo chmod 600 /mnt/swapfile2 && sudo mkswap /mnt/swapfile2 > /dev/null && sudo swapon /mnt/swapfile2
+          fi
+          df -h / /mnt; free -g
+
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install tools
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          pip install --quiet --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          pip install --quiet numpy==1.26.4 transformers==4.46.3 accelerate==1.1.1 sentencepiece==0.2.0 protobuf==5.28.3 \
+            onnx==1.17.0 onnxruntime==1.22.1 langcodes==3.4.1 language_data==1.2.0 sacrebleu==2.4.3 huggingface_hub
+          pip list 2>/dev/null | grep -iE "^(torch|transformers|onnx|onnxruntime|sentencepiece) "
+
+      - name: Check the export on tiny models
+        if: steps.gate.outputs.skip != 'true'
+        run: python3 convert/test_mt_seq2seq.py 2>&1 | grep -vE "Warning|warn\(|^  "
+
+      - name: Export and quantize
+        if: steps.gate.outputs.skip != 'true'
+        run: python3 convert/mt_seq2seq.py export "$ID" "$WORK/out" 2>&1 | grep -vE "TracerWarning|^  warnings.warn|^  if |^  return " | tee export.txt
+
+      - name: Quality and speed (FLORES-200 devtest)
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          curl -sSL "$FLORES_URL" | tar xz
+          python3 convert/mt_seq2seq.py check "$ID" "$WORK/out" flores200_dataset 2>&1 | tee check.txt
+
+      - name: Publish release
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          cd "$WORK/out"
+          FILES="encoder.onnx decoder.onnx sentencepiece.model ids.bin model.json tokenizer-tests.json report.json"
+          python3 - <<'PY'
+          import hashlib, json, os
+          meta = json.load(open("model.json"))
+          files = []
+          for name in "encoder.onnx decoder.onnx sentencepiece.model ids.bin model.json".split():
+              h = hashlib.sha256()
+              with open(name, "rb") as f:
+                  for chunk in iter(lambda: f.read(1 << 20), b""):
+                      h.update(chunk)
+              files.append({"path": name, "size": os.path.getsize(name), "sha256": h.hexdigest()})
+          manifest = {
+              "id": os.environ["TAG"], "model": meta["id"], "title": meta["title"], "source": meta["source"],
+              "sourceRevision": json.load(open("source.json"))["revision"], "license": meta["license"],
+              "languages": [lang["code"] for lang in meta["languages"]],
+              "converter": f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              "commit": os.environ["GITHUB_SHA"], "files": files, "report": json.load(open("report.json")),
+          }
+          json.dump(manifest, open(f"{os.environ['TAG']}.json", "w"), ensure_ascii=False, indent=1)
+          r = manifest["report"]
+          with open("notes.md", "w") as f:
+              f.write(f"{meta['title']}, converted automatically from {meta['source']} (revision {manifest['sourceRevision']}, licence {meta['license']}).\n\n")
+              f.write(f"Greedy decoding, {r['sentences']} FLORES-200 devtest sentences per direction, chrF++ of the original model (fp32) and of these files; "
+                      f"speed on the 4-core runner ({r['tokens_per_second']} tokens/s, peak memory {r['peak_rss_gb']} GB):\n\n")
+              f.write("| Direction | chrF++ fp32 | chrF++ here | s/sentence |\n|---|---|---|---|\n")
+              for d in r["directions"]:
+                  f.write(f"| {d['direction']} | {d['chrf_fp32']} | {d['chrf_quantized']} | {d['seconds_per_sentence']} |\n")
+          PY
+          sha256sum $FILES "$TAG.json" > SHA256SUMS
+          { echo; echo '```'; cat SHA256SUMS; echo '```'; } >> notes.md
+          gh release create "$TAG" $FILES "$TAG.json" SHA256SUMS --title "$TAG" --notes-file notes.md
+          echo "MANIFEST-BEGIN"; cat "$TAG.json"; echo "MANIFEST-END"
